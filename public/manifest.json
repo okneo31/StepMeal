@@ -1,0 +1,22 @@
+{
+  "name": "StepMeal",
+  "short_name": "StepMeal",
+  "description": "움직여서 벌고, 건강하게 먹고, 게임으로 즐기자",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F9FAFB",
+  "theme_color": "#22C55E",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

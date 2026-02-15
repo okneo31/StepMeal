@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String?
+  nickname      String
+  provider      String    @default("credentials") // credentials, kakao, google
+  providerId    String?
+  weight        Float     @default(70)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  coinBalance     CoinBalance?
+  stride          Stride?
+  movements       Movement[]
+  coinTransactions CoinTransaction[]
+  dailyEarnings   DailyEarning[]
+}
+
+model CoinBalance {
+  userId      String   @id
+  scBalance   Int      @default(0)
+  mcBalance   Int      @default(0)
+  scLifetime  Int      @default(0)
+  mcLifetime  Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Stride {
+  userId          String   @id
+  currentStreak   Int      @default(0)
+  strideLevel     Int      @default(0)
+  strideMultiplier Float   @default(1.0)
+  longestStreak   Int      @default(0)
+  lastActive      DateTime?
+  shieldCount     Int      @default(0)
+  totalDistance    Int      @default(0) // meters
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Movement {
+  id            String   @id @default(cuid())
+  userId        String
+  status        String   @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
+  startLat      Float?
+  startLng      Float?
+  endLat        Float?
+  endLng        Float?
+  distanceM     Int      @default(0)
+  durationSec   Int      @default(0)
+  segments      String   @default("[]") // JSON: [{transport, distance, duration, avgSpeed, points[]}]
+  transportClass String? // BODY, ECO, RIDE, MULTI
+  isMulti       Boolean  @default(false)
+  multiClassCount Int    @default(1)
+  weather       String?
+  timeSlot      String?
+  calories      Float    @default(0)
+  baseSc        Int      @default(0)
+  transportMult Float    @default(1.0)
+  strideMult    Float    @default(1.0)
+  timeMult      Float    @default(1.0)
+  weatherMult   Float    @default(1.0)
+  multiMult     Float    @default(1.0)
+  bonusSc       Int      @default(0)
+  totalSc       Int      @default(0)
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions CoinTransaction[]
+
+  @@index([userId, createdAt])
+}
+
+model CoinTransaction {
+  id           String   @id @default(cuid())
+  userId       String
+  coinType     String   // SC, MC
+  amount       Int      // positive=earn, negative=spend
+  balanceAfter Int
+  sourceType   String   // MOVEMENT, QR_SCAN, REVIEW, CHALLENGE, PURCHASE, GAME, NFT_MINT, CHECKIN
+  sourceId     String?
+  description  String?
+  multipliers  String?  // JSON
+  createdAt    DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movement Movement? @relation(fields: [sourceId], references: [id])
+
+  @@index([userId, coinType, createdAt])
+}
+
+model DailyEarning {
+  id          String   @id @default(cuid())
+  userId      String
+  earnDate    DateTime
+  scMovement  Int      @default(0)
+  scSocial    Int      @default(0)
+  scChallenge Int      @default(0)
+  scCheckin   Int      @default(0)
+  mcQr        Int      @default(0)
+  mcGame      Int      @default(0)
+  distanceM   Int      @default(0)
+  strideActive Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, earnDate])
+  @@index([userId, earnDate])
+}
