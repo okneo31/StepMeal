@@ -7,9 +7,13 @@ export const config = {
     "/history/:path*",
     "/stats/:path*",
     "/profile/:path*",
+    "/store/:path*",
+    "/game/:path*",
     "/api/coins/:path*",
     "/api/stride/:path*",
     "/api/movement/:path*",
     "/api/stats/:path*",
+    "/api/store/:path*",
+    "/api/game/:path*",
   ],
 };

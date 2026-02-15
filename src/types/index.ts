@@ -61,3 +61,52 @@ export interface DailySummary {
   mcEarned: number;
   movementCount: number;
 }
+
+// === Store Types ===
+export type StoreCategory = 'HEALTH_FOOD' | 'IN_APP';
+
+export interface StoreItemDisplay {
+  id: string;
+  category: StoreCategory;
+  name: string;
+  description: string | null;
+  price: number;
+  coinType: string;
+  stock: number;
+  imageUrl: string | null;
+  metadata: string | null;
+}
+
+// === Game Types ===
+export type RouletteRewardType = 'MC' | 'SHIELD' | 'SC' | 'NONE';
+
+export interface RouletteReward {
+  type: RouletteRewardType;
+  value: number;
+  label: string;
+  weight: number;
+  color: string;
+}
+
+export interface RouletteResult {
+  slotIndex: number;
+  reward: RouletteReward;
+  newScBalance: number;
+  newMcBalance: number;
+  remainingPlays: number;
+}
+
+export interface QuizQuestionDisplay {
+  id: string;
+  question: string;
+  options: string[];
+  category: string;
+}
+
+export interface QuizAnswerResult {
+  isCorrect: boolean;
+  correctIndex: number;
+  explanation: string | null;
+  mcEarned: number;
+  remainingAttempts: number;
+}

@@ -70,6 +70,29 @@ export const MIN_DAILY_DISTANCE = 1000; // 1km minimum for Stride active day
 export const STRIDE_DROP_LEVELS = 2; // Drop 2 levels on miss
 export const STRIDE_RESET_DAYS = 3; // 3 consecutive missed days = reset
 
+// === Store ===
+export const STORE_CATEGORIES = {
+  HEALTH_FOOD: { label: '건강식품', emoji: '🥗' },
+  IN_APP: { label: '인앱아이템', emoji: '🎁' },
+} as const;
+
+// === Roulette ===
+export const ROULETTE_COST_SC = 50;
+export const ROULETTE_DAILY_LIMIT = 5;
+export const ROULETTE_REWARDS = [
+  { type: 'MC' as const, value: 10,  label: '10 MC',    weight: 30, color: '#4CAF50' },
+  { type: 'MC' as const, value: 30,  label: '30 MC',    weight: 25, color: '#2196F3' },
+  { type: 'MC' as const, value: 50,  label: '50 MC',    weight: 15, color: '#9C27B0' },
+  { type: 'MC' as const, value: 100, label: '100 MC',   weight: 5,  color: '#FF9800' },
+  { type: 'SHIELD' as const, value: 1, label: '보호막',  weight: 5,  color: '#00BCD4' },
+  { type: 'SC' as const, value: 20,  label: '20 SC',    weight: 10, color: '#8BC34A' },
+  { type: 'NONE' as const, value: 0,  label: '꽝',      weight: 10, color: '#9E9E9E' },
+];
+
+// === Quiz ===
+export const QUIZ_MC_REWARD = 20;
+export const QUIZ_DAILY_LIMIT = 3;
+
 // === Anti-cheat ===
 export const GPS_UPDATE_INTERVAL = 30000; // 30 seconds
 export const MAX_GPS_JUMP_METERS = 500; // Max jump in one update

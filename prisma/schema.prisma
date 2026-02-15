@@ -24,6 +24,9 @@ model User {
   movements       Movement[]
   coinTransactions CoinTransaction[]
   dailyEarnings   DailyEarning[]
+  purchases       Purchase[]
+  roulettePlays   RoulettePlay[]
+  quizAttempts    QuizAttempt[]
 }
 
 model CoinBalance {
@@ -102,6 +105,79 @@ model CoinTransaction {
   movement Movement? @relation(fields: [sourceId], references: [id])
 
   @@index([userId, coinType, createdAt])
+}
+
+model StoreItem {
+  id          String   @id @default(cuid())
+  category    String   // HEALTH_FOOD, IN_APP
+  name        String
+  description String?
+  price       Int
+  coinType    String   // SC, MC
+  stock       Int      @default(-1) // -1 = unlimited
+  imageUrl    String?
+  metadata    String?  // JSON: extra info
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  purchases Purchase[]
+}
+
+model Purchase {
+  id          String   @id @default(cuid())
+  userId      String
+  storeItemId String
+  coinType    String   // SC, MC
+  amount      Int      // price paid
+  quantity    Int      @default(1)
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeItem StoreItem @relation(fields: [storeItemId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+model RoulettePlay {
+  id          String   @id @default(cuid())
+  userId      String
+  costSc      Int
+  rewardType  String   // MC, SHIELD, SC, NONE
+  rewardValue Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model QuizQuestion {
+  id           String   @id @default(cuid())
+  question     String
+  options      String   // JSON: string[]
+  correctIndex Int
+  explanation  String?
+  category     String   @default("HEALTH")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  attempts QuizAttempt[]
+}
+
+model QuizAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  questionId String
+  selectedIndex Int
+  isCorrect  Boolean
+  mcEarned   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question QuizQuestion @relation(fields: [questionId], references: [id])
+
+  @@index([userId, createdAt])
 }
 
 model DailyEarning {
