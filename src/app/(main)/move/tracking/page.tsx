@@ -17,6 +17,7 @@ export default function TrackingPage() {
   const [showTransportSwitch, setShowTransportSwitch] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastPointRef = useRef<GpsPoint | null>(null);
+  const totalDistanceRef = useRef(0);
 
   const {
     isTracking,
@@ -37,6 +38,11 @@ export default function TrackingPage() {
 
   const { position, error, startWatching, stopWatching } = useGeolocation();
 
+  // Keep ref in sync with store
+  useEffect(() => {
+    totalDistanceRef.current = totalDistance;
+  }, [totalDistance]);
+
   // Redirect if not tracking
   useEffect(() => {
     if (!isTracking || !movementId) {
@@ -44,7 +50,7 @@ export default function TrackingPage() {
     }
   }, [isTracking, movementId, router]);
 
-  // Handle GPS updates
+  // Handle GPS updates - use refs to avoid stale closure
   const handleGpsUpdate = useCallback(
     (point: GpsPoint) => {
       if (lastPointRef.current) {
@@ -52,15 +58,17 @@ export default function TrackingPage() {
         // Anti-cheat: skip if jump > 500m
         if (dist > 500) return;
         // Skip if too close (noise)
-        if (dist < 3) return;
+        if (dist < 2) return;
 
-        updateDistance(totalDistance + Math.round(dist));
-        updateEstimatedSc(estimateSc(totalDistance + Math.round(dist), currentTransport));
+        const newTotal = totalDistanceRef.current + Math.round(dist);
+        const store = useMovementStore.getState();
+        updateDistance(newTotal);
+        updateEstimatedSc(estimateSc(newTotal, store.currentTransport));
       }
       lastPointRef.current = point;
       addGpsPoint(point);
     },
-    [totalDistance, currentTransport, addGpsPoint, updateDistance, updateEstimatedSc]
+    [addGpsPoint, updateDistance, updateEstimatedSc]
   );
 
   // Start watching GPS
@@ -69,7 +77,7 @@ export default function TrackingPage() {
       startWatching(handleGpsUpdate);
     }
     return () => stopWatching();
-  }, [isTracking]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isTracking, startWatching, handleGpsUpdate, stopWatching]);
 
   // Timer
   useEffect(() => {
