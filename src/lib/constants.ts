@@ -2,13 +2,13 @@ import type { TransportConfig, StrideInfo, TimeSlot, WeatherType } from "@/types
 
 // === Transport Configurations ===
 export const TRANSPORT_CONFIG: Record<string, TransportConfig> = {
-  RUN:     { type: 'RUN',     class: 'BODY', label: '달리기',     emoji: '🏃', baseSc: 1.2, multiplier: 1.8, minSpeed: 6,  maxSpeed: 15,  weatherBonus: true },
-  WALK:    { type: 'WALK',    class: 'BODY', label: '도보',       emoji: '🚶', baseSc: 1.0, multiplier: 1.5, minSpeed: 0,  maxSpeed: 6,   weatherBonus: true },
-  BIKE:    { type: 'BIKE',    class: 'ECO',  label: '자전거',     emoji: '🚴', baseSc: 0.8, multiplier: 1.2, minSpeed: 6,  maxSpeed: 30,  weatherBonus: true },
-  SCOOTER: { type: 'SCOOTER', class: 'ECO',  label: '전동킥보드', emoji: '🛴', baseSc: 0.6, multiplier: 0.9, minSpeed: 6,  maxSpeed: 25,  weatherBonus: false },
-  BUS:     { type: 'BUS',     class: 'RIDE', label: '버스',       emoji: '🚌', baseSc: 0.5, multiplier: 0.8, minSpeed: 0,  maxSpeed: 80,  weatherBonus: false },
-  TRAIN:   { type: 'TRAIN',   class: 'RIDE', label: '지하철/기차', emoji: '🚆', baseSc: 0.4, multiplier: 0.6, minSpeed: 0,  maxSpeed: 300, weatherBonus: false },
-  CAR:     { type: 'CAR',     class: 'RIDE', label: '자동차',     emoji: '🚗', baseSc: 0.3, multiplier: 0.5, minSpeed: 15, maxSpeed: 120, weatherBonus: false },
+  RUN:     { type: 'RUN',     class: 'BODY', label: '달리기',     emoji: '🏃', baseSc: 2.8, multiplier: 1.8, minSpeed: 6,  maxSpeed: 15,  weatherBonus: true },
+  WALK:    { type: 'WALK',    class: 'BODY', label: '도보',       emoji: '🚶', baseSc: 2.4, multiplier: 1.5, minSpeed: 0,  maxSpeed: 6,   weatherBonus: true },
+  BIKE:    { type: 'BIKE',    class: 'ECO',  label: '자전거',     emoji: '🚴', baseSc: 2.0, multiplier: 1.2, minSpeed: 6,  maxSpeed: 30,  weatherBonus: true },
+  SCOOTER: { type: 'SCOOTER', class: 'ECO',  label: '전동킥보드', emoji: '🛴', baseSc: 1.5, multiplier: 0.9, minSpeed: 6,  maxSpeed: 25,  weatherBonus: false },
+  BUS:     { type: 'BUS',     class: 'RIDE', label: '버스',       emoji: '🚌', baseSc: 1.2, multiplier: 0.8, minSpeed: 0,  maxSpeed: 80,  weatherBonus: false },
+  TRAIN:   { type: 'TRAIN',   class: 'RIDE', label: '지하철/기차', emoji: '🚆', baseSc: 1.0, multiplier: 0.6, minSpeed: 0,  maxSpeed: 300, weatherBonus: false },
+  CAR:     { type: 'CAR',     class: 'RIDE', label: '자동차',     emoji: '🚗', baseSc: 0.7, multiplier: 0.5, minSpeed: 15, maxSpeed: 120, weatherBonus: false },
 };
 
 export const TRANSPORT_LIST = Object.values(TRANSPORT_CONFIG);
