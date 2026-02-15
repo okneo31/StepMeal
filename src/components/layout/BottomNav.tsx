@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { href: "/home", label: "홈", icon: "🏠" },
+  { href: "/home", label: "홈", icon: "🏠", forceRefresh: true },
   { href: "/move", label: "이동", icon: "🗺️" },
   { href: "/store", label: "스토어", icon: "🛒" },
   { href: "/game", label: "게임", icon: "🎮" },
@@ -25,15 +25,30 @@ export default function BottomNav() {
       <div className="max-w-lg mx-auto flex">
         {tabs.map((tab) => {
           const isActive = pathname?.startsWith(tab.href);
+          const className = `flex-1 flex flex-col items-center py-2 min-h-[56px] transition-colors ${
+            isActive
+              ? "text-[var(--color-primary)]"
+              : "text-gray-400 hover:text-gray-600"
+          }`;
+
+          if (tab.forceRefresh) {
+            return (
+              <a
+                key={tab.label}
+                href={tab.href}
+                className={className}
+              >
+                <span className="text-xl">{tab.icon}</span>
+                <span className="text-[10px] mt-0.5 font-medium">{tab.label}</span>
+              </a>
+            );
+          }
+
           return (
             <Link
               key={tab.label}
               href={tab.href}
-              className={`flex-1 flex flex-col items-center py-2 min-h-[56px] transition-colors ${
-                isActive
-                  ? "text-[var(--color-primary)]"
-                  : "text-gray-400 hover:text-gray-600"
-              }`}
+              className={className}
             >
               <span className="text-xl">{tab.icon}</span>
               <span className="text-[10px] mt-0.5 font-medium">{tab.label}</span>
