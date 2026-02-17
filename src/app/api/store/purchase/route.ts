@@ -86,7 +86,6 @@ export async function POST(req: Request) {
           amount: -totalPrice,
           balanceAfter: newBalance,
           sourceType: "PURCHASE",
-          sourceId: purchase.id,
           description: `${item.name} 구매 (x${quantity})`,
         },
       });

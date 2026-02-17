@@ -59,7 +59,6 @@ export async function POST(req: Request) {
           amount: -cost,
           balanceAfter: updatedBalance.mcBalance,
           sourceType: "NFT_MINT",
-          sourceId: nftId,
           description: `NFT 강화 시도: ${nft.template.name} +${nft.enhanceLevel} → +${nft.enhanceLevel + 1}`,
         },
       });

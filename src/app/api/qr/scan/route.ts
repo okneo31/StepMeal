@@ -224,7 +224,6 @@ async function localScan(code: string, userId: string) {
         amount: qrCode.mcReward,
         balanceAfter: balance.mcBalance,
         sourceType: "QR_SCAN",
-        sourceId: qrCode.id,
         description: qrCode.description || `QR 스캔 보상 (+${qrCode.mcReward} MC)`,
       },
     });

@@ -70,7 +70,6 @@ export async function POST(req: Request) {
           amount: -template.priceMc,
           balanceAfter: updatedBalance.mcBalance,
           sourceType: "NFT_MINT",
-          sourceId: nft.id,
           description: `NFT 민팅: ${template.name} #${updatedTemplate.mintedCount}`,
         },
       });
