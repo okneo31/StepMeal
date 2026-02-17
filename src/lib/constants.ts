@@ -112,11 +112,11 @@ export const NFT_TYPES = {
 } as const;
 
 export const BOOSTER_TIERS = {
-  BRONZE:   { label: '브론즈',   bonusPercent: 8,  color: '#CD7F32' },
-  SILVER:   { label: '실버',     bonusPercent: 15, color: '#C0C0C0' },
-  GOLD:     { label: '골드',     bonusPercent: 25, color: '#FFD700' },
-  PLATINUM: { label: '플래티넘', bonusPercent: 40, color: '#E5E4E2' },
-  DIAMOND:  { label: '다이아',   bonusPercent: 60, color: '#B9F2FF' },
+  BRONZE:   { label: '브론즈',   bonusPercent: 12,  color: '#CD7F32' },
+  SILVER:   { label: '실버',     bonusPercent: 25,  color: '#C0C0C0' },
+  GOLD:     { label: '골드',     bonusPercent: 50,  color: '#FFD700' },
+  PLATINUM: { label: '플래티넘', bonusPercent: 90,  color: '#E5E4E2' },
+  DIAMOND:  { label: '다이아',   bonusPercent: 150, color: '#B9F2FF' },
 } as const;
 
 export const ACCESSORY_SLOTS = {
@@ -135,11 +135,11 @@ export const VEHICLE_SYNERGY = {
 } as const;
 
 export const ENHANCE_RATES = [0.9, 0.75, 0.6, 0.45, 0.3] as const; // +1~+5 success rates
-export const ENHANCE_BONUS_PER_LEVEL = 5; // +5% per enhance level
+export const ENHANCE_BONUS_PER_LEVEL = 8; // +8% per enhance level (item bonus × 1.08^level)
 
 export const SET_BONUS = {
-  TWO_TYPES: 10,   // 2종 장착 시 +10% SC
-  THREE_TYPES: 25, // 3종 장착 시 +25% SC
+  TWO_TYPES: 20,   // 2종 장착 시 +20% SC
+  THREE_TYPES: 40, // 3종 장착 시 +40% SC
 } as const;
 
 // === Character System ===
