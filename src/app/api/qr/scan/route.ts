@@ -106,7 +106,6 @@ export async function POST(req: Request) {
           amount: mcReward,
           balanceAfter: balance.mcBalance,
           sourceType: "QR_SCAN",
-          sourceId: trimmedCode,
           description: `${productName} QR 스캔 (+${mcReward} MC)`,
         },
       });
