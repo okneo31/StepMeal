@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Header from "@/components/layout/Header";
 import DailySummaryCard from "@/components/home/DailySummaryCard";
 import CoinBalanceCard from "@/components/home/CoinBalanceCard";
 import StrideInfoCard from "@/components/home/StrideInfoCard";
+import Badge from "@/components/ui/Badge";
+import ProgressBar from "@/components/ui/ProgressBar";
 import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
+import { CHARACTER_AVATARS, CONDITION_SC_MULTIPLIER } from "@/lib/constants";
 
 export default function HomePage() {
   const { data: session, status } = useSession();
@@ -17,6 +19,8 @@ export default function HomePage() {
   const [balance, setBalance] = useState({ scBalance: 0, mcBalance: 0 });
   const [stride, setStride] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
+  const [nftBonus, setNftBonus] = useState(0);
+  const [character, setCharacter] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,10 +33,14 @@ export default function HomePage() {
         fetch("/api/coins/balance").then((r) => r.json()),
         fetch("/api/stride").then((r) => r.json()),
         fetch("/api/stats").then((r) => r.json()),
-      ]).then(([bal, str, sts]) => {
+        fetch("/api/nft/my").then((r) => r.json()),
+        fetch("/api/character").then((r) => r.json()),
+      ]).then(([bal, str, sts, nft, char]) => {
         setBalance(bal);
         setStride(str);
         setStats(sts);
+        setNftBonus(nft.totalBonusPercent || 0);
+        setCharacter(char);
         setLoading(false);
       }).catch(() => setLoading(false));
     }
@@ -48,19 +56,122 @@ export default function HomePage() {
 
   return (
     <div>
-      <Header
-        title={`안녕하세요, ${session?.user?.name || "사용자"}님`}
-      />
-      <div className="px-4 py-4 space-y-4">
+      {/* Hero Header */}
+      <div className="px-4 pt-4 pb-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-[var(--color-text-muted)]">Welcome back</p>
+            <h1 className="text-xl font-bold text-[var(--color-text)]">
+              {session?.user?.name || "사용자"}
+            </h1>
+          </div>
+          <Link href="/profile">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500/30 to-blue-500/30 border border-[var(--color-border)] flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="7" r="3.5" stroke="#94A3B8" strokeWidth="1.5"/>
+                <path d="M16 18C16 14.7 13.3 13 10 13C6.7 13 4 14.7 4 18" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </div>
+          </Link>
+        </div>
+      </div>
+
+      {/* Character + Stride Preview */}
+      <div className="px-4 py-3">
+        <Link href="/character">
+          <div className="bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-surface-elevated)] rounded-3xl p-5 border border-[var(--color-border)] relative overflow-hidden">
+            {/* Background glow */}
+            {(() => {
+              const avatarInfo = character?.avatarType ? CHARACTER_AVATARS[character.avatarType as keyof typeof CHARACTER_AVATARS] : CHARACTER_AVATARS.DEFAULT;
+              const condMult = character ? CONDITION_SC_MULTIPLIER(character.condition || 100) : 1;
+              return (
+                <>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full blur-3xl" style={{ backgroundColor: avatarInfo?.color || '#22C55E', opacity: 0.04 }} />
+
+                  {/* Character */}
+                  <div className="flex flex-col items-center mb-4 relative">
+                    <div
+                      className="w-24 h-24 rounded-full flex items-center justify-center mb-3 border-2"
+                      style={{
+                        background: `linear-gradient(135deg, ${avatarInfo?.color || '#22C55E'}15, ${avatarInfo?.color || '#22C55E'}05)`,
+                        borderColor: `${avatarInfo?.color || '#22C55E'}40`,
+                      }}
+                    >
+                      <span className="text-5xl">{avatarInfo?.emoji || '🏃'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mb-1">
+                      {character && (
+                        <Badge variant="green" size="sm">Lv.{character.level}</Badge>
+                      )}
+                      {stride && (
+                        <>
+                          <Badge variant={stride.level >= 4 ? "green" : "blue"} size="sm">
+                            Stride {stride.level}
+                          </Badge>
+                          <span className="text-lg font-bold text-[var(--color-primary)]">x{stride.multiplier}</span>
+                        </>
+                      )}
+                    </div>
+                    {/* Condition bar */}
+                    {character && (
+                      <div className="w-full max-w-[200px] mt-1">
+                        <div className="flex items-center justify-between text-[10px] mb-0.5">
+                          <span className="text-[var(--color-text-muted)]">컨디션</span>
+                          <span className={`font-semibold ${
+                            condMult >= 1 ? "text-green-400" :
+                            condMult >= 0.8 ? "text-yellow-400" : "text-red-400"
+                          }`}>{character.condition}% · x{condMult}</span>
+                        </div>
+                        <ProgressBar
+                          value={character.condition}
+                          height="h-1.5"
+                          color={
+                            character.condition >= 80 ? "bg-green-500" :
+                            character.condition >= 50 ? "bg-yellow-500" : "bg-red-500"
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+
+            {/* Quick Stats Row */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-[var(--color-bg)]/50 rounded-xl p-2 text-center">
+                <div className="text-sm font-bold text-[var(--color-text)] num">
+                  {((stats?.today?.distanceM || 0) / 1000).toFixed(1)}
+                </div>
+                <div className="text-[10px] text-[var(--color-text-muted)]">km</div>
+              </div>
+              <div className="bg-[var(--color-bg)]/50 rounded-xl p-2 text-center">
+                <div className="text-sm font-bold text-green-400 num">
+                  {stats?.today?.scMovement || 0}
+                </div>
+                <div className="text-[10px] text-[var(--color-text-muted)]">SC 획득</div>
+              </div>
+              <div className="bg-[var(--color-bg)]/50 rounded-xl p-2 text-center">
+                <div className="text-sm font-bold text-[var(--color-text)] num">
+                  {stats?.today?.calories || 0}
+                </div>
+                <div className="text-[10px] text-[var(--color-text-muted)]">kcal</div>
+              </div>
+            </div>
+          </div>
+        </Link>
+      </div>
+
+      <div className="px-4 space-y-3">
+        <CoinBalanceCard
+          scBalance={balance.scBalance}
+          mcBalance={balance.mcBalance}
+        />
+
         <DailySummaryCard
           distanceM={stats?.today?.distanceM || 0}
           durationSec={0}
           calories={stats?.today?.calories || 0}
-        />
-
-        <CoinBalanceCard
-          scBalance={balance.scBalance}
-          mcBalance={balance.mcBalance}
         />
 
         {stride && (
@@ -75,8 +186,32 @@ export default function HomePage() {
           />
         )}
 
-        <Link href="/move">
-          <Button fullWidth size="lg" className="mt-2">
+        {nftBonus > 0 && (
+          <Link href="/nft/equip" className="block">
+            <div className="bg-[var(--color-surface)] rounded-2xl p-3 border border-purple-500/20 glow-purple flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M10 2L3 7V13L10 18L17 13V7L10 2Z" stroke="#A855F7" strokeWidth="1.5" fill="#A855F7" fillOpacity="0.15"/>
+                    <path d="M10 8L7 10L10 12L13 10L10 8Z" fill="#A855F7" fillOpacity="0.5"/>
+                  </svg>
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-[var(--color-text)]">NFT 장비</span>
+                  <p className="text-[10px] text-[var(--color-text-muted)]">장착 관리</p>
+                </div>
+              </div>
+              <Badge variant="green" size="md">SC +{nftBonus}%</Badge>
+            </div>
+          </Link>
+        )}
+
+        <Link href="/move" className="block pb-4">
+          <Button fullWidth size="lg" className="mt-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="mr-2">
+              <path d="M10 2L18 10L10 18L2 10L10 2Z" fill="currentColor" fillOpacity="0.3"/>
+              <path d="M10 6V14M6 10H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
             이동 시작하기
           </Button>
         </Link>

@@ -16,34 +16,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
     }
 
-    // Check daily limit
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const todayAttempts = await prisma.quizAttempt.count({
-      where: {
-        userId: session.user.id,
-        createdAt: { gte: today, lt: tomorrow },
-      },
-    });
-
-    if (todayAttempts >= QUIZ_DAILY_LIMIT) {
-      return NextResponse.json({ error: "오늘의 퀴즈 횟수를 모두 사용했습니다." }, { status: 400 });
-    }
-
-    // Check if already attempted this question today
-    const alreadyAttempted = await prisma.quizAttempt.findFirst({
-      where: {
-        userId: session.user.id,
-        questionId,
-        createdAt: { gte: today, lt: tomorrow },
-      },
-    });
-
-    if (alreadyAttempted) {
-      return NextResponse.json({ error: "이미 이 문제를 풀었습니다." }, { status: 400 });
+    // Validate selectedIndex is a non-negative integer
+    if (typeof selectedIndex !== 'number' || selectedIndex < 0 || !Number.isInteger(selectedIndex)) {
+      return NextResponse.json({ error: "잘못된 답변 인덱스입니다." }, { status: 400 });
     }
 
     const question = await prisma.quizQuestion.findUnique({
@@ -54,10 +29,52 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "문제를 찾을 수 없습니다." }, { status: 404 });
     }
 
+    // Validate selectedIndex is within options bounds
+    let options: string[];
+    try {
+      options = JSON.parse(question.options);
+    } catch {
+      return NextResponse.json({ error: "문제 데이터가 손상되었습니다." }, { status: 500 });
+    }
+
+    if (selectedIndex >= options.length) {
+      return NextResponse.json({ error: "잘못된 답변 인덱스입니다." }, { status: 400 });
+    }
+
     const isCorrect = selectedIndex === question.correctIndex;
     const mcEarned = isCorrect ? QUIZ_MC_REWARD : 0;
 
     const result = await prisma.$transaction(async (tx) => {
+      // Check daily limit INSIDE transaction
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const todayAttempts = await tx.quizAttempt.count({
+        where: {
+          userId: session.user.id,
+          createdAt: { gte: today, lt: tomorrow },
+        },
+      });
+
+      if (todayAttempts >= QUIZ_DAILY_LIMIT) {
+        throw new Error("LIMIT:오늘의 퀴즈 횟수를 모두 사용했습니다.");
+      }
+
+      // Check if already attempted this question today
+      const alreadyAttempted = await tx.quizAttempt.findFirst({
+        where: {
+          userId: session.user.id,
+          questionId,
+          createdAt: { gte: today, lt: tomorrow },
+        },
+      });
+
+      if (alreadyAttempted) {
+        throw new Error("LIMIT:이미 이 문제를 풀었습니다.");
+      }
+
       // 1. Record attempt
       await tx.quizAttempt.create({
         data: {
@@ -95,14 +112,13 @@ export async function POST(req: Request) {
         });
 
         // Update daily earning
-        const earnDate = new Date(today);
         await tx.dailyEarning.upsert({
           where: {
-            userId_earnDate: { userId: session.user.id, earnDate },
+            userId_earnDate: { userId: session.user.id, earnDate: today },
           },
           create: {
             userId: session.user.id,
-            earnDate,
+            earnDate: today,
             mcGame: mcEarned,
           },
           update: {
@@ -111,7 +127,7 @@ export async function POST(req: Request) {
         });
       }
 
-      return { balance };
+      return { balance, todayAttempts };
     });
 
     return NextResponse.json({
@@ -119,10 +135,14 @@ export async function POST(req: Request) {
       correctIndex: question.correctIndex,
       explanation: question.explanation,
       mcEarned,
-      remainingAttempts: QUIZ_DAILY_LIMIT - todayAttempts - 1,
+      remainingAttempts: QUIZ_DAILY_LIMIT - result.todayAttempts - 1,
       newMcBalance: result.balance?.mcBalance || 0,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "서버 오류";
+    if (message.startsWith("LIMIT:")) {
+      return NextResponse.json({ error: message.slice(6) }, { status: 400 });
+    }
     console.error("Quiz answer error:", error);
     return NextResponse.json({ error: "서버 오류" }, { status: 500 });
   }

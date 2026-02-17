@@ -9,8 +9,10 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "20");
+  const rawPage = parseInt(searchParams.get("page") || "1");
+  const rawLimit = parseInt(searchParams.get("limit") || "20");
+  const page = Number.isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
+  const limit = Number.isNaN(rawLimit) || rawLimit < 1 ? 20 : Math.min(rawLimit, 100);
 
   const [movements, total] = await Promise.all([
     prisma.movement.findMany({
@@ -27,7 +29,7 @@ export async function GET(req: Request) {
   return NextResponse.json({
     movements: movements.map((m) => ({
       ...m,
-      segments: JSON.parse(m.segments),
+      segments: (() => { try { return JSON.parse(m.segments); } catch { return []; } })(),
     })),
     total,
     page,

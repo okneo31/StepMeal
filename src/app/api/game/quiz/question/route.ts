@@ -65,7 +65,7 @@ export async function GET() {
     question: {
       id: question.id,
       question: question.question,
-      options: JSON.parse(question.options),
+      options: (() => { try { return JSON.parse(question.options); } catch { return []; } })(),
       category: question.category,
     },
   });

@@ -11,24 +11,24 @@ export async function POST() {
   }
 
   try {
-    // Check daily limit
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const todayPlays = await prisma.roulettePlay.count({
-      where: {
-        userId: session.user.id,
-        createdAt: { gte: today, lt: tomorrow },
-      },
-    });
-
-    if (todayPlays >= ROULETTE_DAILY_LIMIT) {
-      return NextResponse.json({ error: "오늘의 룰렛 횟수를 모두 사용했습니다." }, { status: 400 });
-    }
-
     const result = await prisma.$transaction(async (tx) => {
+      // Check daily limit INSIDE transaction
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const todayPlays = await tx.roulettePlay.count({
+        where: {
+          userId: session.user.id,
+          createdAt: { gte: today, lt: tomorrow },
+        },
+      });
+
+      if (todayPlays >= ROULETTE_DAILY_LIMIT) {
+        throw new Error("LIMIT:오늘의 룰렛 횟수를 모두 사용했습니다.");
+      }
+
       // 1. Check SC balance
       const balance = await tx.coinBalance.findUnique({
         where: { userId: session.user.id },
@@ -126,6 +126,9 @@ export async function POST() {
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "서버 오류";
+    if (message.startsWith("LIMIT:")) {
+      return NextResponse.json({ error: message.slice(6) }, { status: 400 });
+    }
     const status = message === "SC가 부족합니다." ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }

@@ -11,13 +11,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant = "primary", size = "md", loading, fullWidth, className = "", children, disabled, ...props }, ref) => {
-    const base = "inline-flex items-center justify-center font-semibold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
+    const base = "inline-flex items-center justify-center font-semibold rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--color-bg)] disabled:opacity-40 disabled:cursor-not-allowed";
 
     const variants = {
-      primary: "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-dark)] focus:ring-green-500",
-      secondary: "bg-[var(--color-secondary)] text-white hover:bg-[var(--color-secondary-dark)] focus:ring-amber-500",
-      outline: "border-2 border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-green-50 focus:ring-green-500",
-      ghost: "text-gray-600 hover:bg-gray-100 focus:ring-gray-500",
+      primary: "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-dark)] focus:ring-green-500 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]",
+      secondary: "bg-[var(--color-secondary)] text-white hover:bg-[var(--color-secondary-dark)] focus:ring-amber-500 hover:shadow-[0_0_20px_rgba(245,158,11,0.3)]",
+      outline: "border-2 border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary-glow)] focus:ring-green-500",
+      ghost: "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] focus:ring-gray-500",
     };
 
     const sizes = {

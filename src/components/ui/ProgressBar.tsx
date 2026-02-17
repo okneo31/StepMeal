@@ -9,8 +9,8 @@ export default function ProgressBar({ value, color = "bg-[var(--color-primary)]"
   const clamped = Math.min(100, Math.max(0, value));
   return (
     <div>
-      {label && <div className="text-xs text-gray-500 mb-1">{label}</div>}
-      <div className={`w-full bg-gray-200 rounded-full ${height} overflow-hidden`}>
+      {label && <div className="text-xs text-[var(--color-text-muted)] mb-1">{label}</div>}
+      <div className={`w-full bg-[var(--color-surface-elevated)] rounded-full ${height} overflow-hidden`}>
         <div
           className={`${color} ${height} rounded-full transition-all duration-500`}
           style={{ width: `${clamped}%` }}

@@ -13,23 +13,23 @@ interface Props {
 const labels = ["A", "B", "C", "D"];
 
 export default function QuizOption({ index, text, selected, correct, showResult, onSelect, disabled }: Props) {
-  let borderColor = "border-gray-200";
-  let bgColor = "bg-white";
-  let textColor = "text-gray-800";
+  let borderColor = "border-[var(--color-border)]";
+  let bgColor = "bg-[var(--color-surface)]";
+  let textColor = "text-[var(--color-text)]";
 
   if (showResult) {
     if (correct) {
-      borderColor = "border-green-500";
-      bgColor = "bg-green-50";
-      textColor = "text-green-800";
+      borderColor = "border-green-500/50";
+      bgColor = "bg-green-500/10";
+      textColor = "text-green-400";
     } else if (selected && !correct) {
-      borderColor = "border-red-500";
-      bgColor = "bg-red-50";
-      textColor = "text-red-800";
+      borderColor = "border-red-500/50";
+      bgColor = "bg-red-500/10";
+      textColor = "text-red-400";
     }
   } else if (selected) {
-    borderColor = "border-[var(--color-primary)]";
-    bgColor = "bg-green-50";
+    borderColor = "border-[var(--color-primary)]/50";
+    bgColor = "bg-[var(--color-primary)]/10";
   }
 
   return (
@@ -37,7 +37,7 @@ export default function QuizOption({ index, text, selected, correct, showResult,
       onClick={() => onSelect(index)}
       disabled={disabled}
       className={`w-full text-left p-4 rounded-xl border-2 transition-all ${borderColor} ${bgColor} ${textColor} ${
-        disabled ? "cursor-not-allowed" : "hover:border-gray-300 active:scale-[0.98]"
+        disabled ? "cursor-not-allowed" : "hover:border-[var(--color-surface-hover)] active:scale-[0.98]"
       }`}
     >
       <div className="flex items-start gap-3">
@@ -48,9 +48,17 @@ export default function QuizOption({ index, text, selected, correct, showResult,
             ? "bg-green-500 text-white"
             : showResult && selected && !correct
             ? "bg-red-500 text-white"
-            : "bg-gray-100 text-gray-600"
+            : "bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]"
         }`}>
-          {showResult && correct ? "✓" : showResult && selected && !correct ? "✗" : labels[index]}
+          {showResult && correct ? (
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M3 7L6 10L11 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          ) : showResult && selected && !correct ? (
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M4 4L10 10M10 4L4 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          ) : labels[index]}
         </span>
         <span className="text-sm font-medium leading-relaxed">{text}</span>
       </div>

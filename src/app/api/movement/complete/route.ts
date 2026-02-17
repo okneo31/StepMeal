@@ -3,8 +3,12 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateMovementSc, getMultiModalBonus, getMultiClassCount, getTimeSlot, estimateCalories } from "@/lib/sc-calculator";
 import { calculateStrideUpdate } from "@/lib/stride-engine";
-import { TRANSPORT_CONFIG } from "@/lib/constants";
-import type { MovementSegment, WeatherType } from "@/types";
+import { TRANSPORT_CONFIG, STRIDE_TABLE, MIN_DAILY_DISTANCE } from "@/lib/constants";
+import type { MovementSegment, WeatherType, TransportType } from "@/types";
+
+const MAX_NFT_BONUS_PERCENT = 100;
+const VALID_TRANSPORTS = new Set(Object.keys(TRANSPORT_CONFIG));
+const VALID_WEATHERS = new Set(['CLEAR','CLOUDY','RAIN','SNOW','HEAVY_RAIN','HEAVY_SNOW','EXTREME_HEAT','EXTREME_COLD']);
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -19,8 +23,26 @@ export async function POST(req: Request) {
       weather?: WeatherType;
     };
 
-    if (!movementId || !segments || segments.length === 0) {
+    if (!movementId || !segments || !Array.isArray(segments) || segments.length === 0) {
       return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
+    }
+
+    // Validate weather
+    if (!VALID_WEATHERS.has(weather)) {
+      return NextResponse.json({ error: "잘못된 날씨 정보입니다." }, { status: 400 });
+    }
+
+    // Validate segments
+    for (const seg of segments) {
+      if (!seg.transport || !VALID_TRANSPORTS.has(seg.transport)) {
+        return NextResponse.json({ error: `잘못된 이동수단: ${seg.transport}` }, { status: 400 });
+      }
+      if (typeof seg.distance !== 'number' || seg.distance < 0) {
+        return NextResponse.json({ error: "잘못된 거리 데이터입니다." }, { status: 400 });
+      }
+      if (typeof seg.duration !== 'number' || seg.duration < 0) {
+        return NextResponse.json({ error: "잘못된 시간 데이터입니다." }, { status: 400 });
+      }
     }
 
     // Verify movement belongs to user
@@ -38,9 +60,19 @@ export async function POST(req: Request) {
     });
     const strideLevel = stride?.strideLevel || 0;
 
+    // Get NFT bonus
+    const userNfts = await prisma.userNft.findMany({
+      where: { userId: session.user.id },
+      include: { template: { select: { scBonusPercent: true } } },
+    });
+    const nftBonusPercent = Math.min(
+      userNfts.reduce((sum, nft) => sum + nft.template.scBonusPercent, 0),
+      MAX_NFT_BONUS_PERCENT,
+    );
+
     // Calculate SC
     const now = new Date();
-    const scBreakdown = calculateMovementSc(segments, strideLevel, weather, now);
+    const scBreakdown = calculateMovementSc(segments, strideLevel, weather, now, nftBonusPercent);
 
     // Calculate totals
     const totalDistance = segments.reduce((sum, s) => sum + s.distance, 0);
@@ -121,7 +153,7 @@ export async function POST(req: Request) {
           earnDate: today,
           scMovement: scBreakdown.totalSc,
           distanceM: totalDistance,
-          strideActive: totalDistance >= 1000,
+          strideActive: totalDistance >= MIN_DAILY_DISTANCE,
         },
         update: {
           scMovement: { increment: scBreakdown.totalSc },
@@ -145,7 +177,7 @@ export async function POST(req: Request) {
           userId: session.user.id,
           currentStreak: strideUpdate.newStreak,
           strideLevel: strideUpdate.newLevel,
-          strideMultiplier: strideUpdate.newLevel >= 0 ? [1, 1.2, 1.5, 2, 3, 4, 5, 6.5, 8][strideUpdate.newLevel] : 1,
+          strideMultiplier: STRIDE_TABLE[Math.max(0, Math.min(strideUpdate.newLevel, STRIDE_TABLE.length - 1))].multiplier,
           longestStreak: Math.max(0, strideUpdate.newStreak),
           lastActive: now,
           shieldCount: strideUpdate.newShieldCount,
@@ -154,7 +186,7 @@ export async function POST(req: Request) {
         update: {
           currentStreak: strideUpdate.newStreak,
           strideLevel: strideUpdate.newLevel,
-          strideMultiplier: strideUpdate.newLevel >= 0 ? [1, 1.2, 1.5, 2, 3, 4, 5, 6.5, 8][strideUpdate.newLevel] : 1,
+          strideMultiplier: STRIDE_TABLE[Math.max(0, Math.min(strideUpdate.newLevel, STRIDE_TABLE.length - 1))].multiplier,
           longestStreak: Math.max(stride?.longestStreak || 0, strideUpdate.newStreak),
           lastActive: now,
           shieldCount: strideUpdate.newShieldCount,

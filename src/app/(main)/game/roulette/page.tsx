@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Header from "@/components/layout/Header";
-import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import RouletteWheel from "@/components/game/RouletteWheel";
 import Spinner from "@/components/ui/Spinner";
@@ -53,7 +52,6 @@ export default function RoulettePage() {
         return;
       }
 
-      // Trigger wheel animation to land on the slot
       setResultReward(data.reward);
       setResultIndex(data.slotIndex);
       setStatus((prev) =>
@@ -97,26 +95,26 @@ export default function RoulettePage() {
       <Header title="럭키 룰렛" showBack />
       <div className="px-4 py-4 space-y-4">
         {/* Status */}
-        <Card>
+        <div className="bg-[var(--color-surface)] rounded-2xl p-4 border border-purple-500/20 glow-purple">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-xs text-gray-500">남은 횟수</p>
-              <p className="text-lg font-bold num">
+              <p className="text-xs text-[var(--color-text-muted)]">남은 횟수</p>
+              <p className="text-lg font-bold text-[var(--color-text)] num">
                 {status?.remainingPlays || 0} / {status?.dailyLimit || 5}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-500">참여 비용</p>
-              <p className="text-lg font-bold text-green-700 num">{status?.costSc || 50} SC</p>
+              <p className="text-xs text-[var(--color-text-muted)]">참여 비용</p>
+              <p className="text-lg font-bold text-green-400 num">{status?.costSc || 50} SC</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-500">보유 SC</p>
-              <p className="text-lg font-bold text-green-700 num">
+              <p className="text-xs text-[var(--color-text-muted)]">보유 SC</p>
+              <p className="text-lg font-bold text-green-400 num">
                 {(status?.scBalance || 0).toLocaleString()}
               </p>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Wheel */}
         <div className="py-4">
@@ -129,20 +127,31 @@ export default function RoulettePage() {
 
         {/* Error */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700 text-center">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-sm text-red-400 text-center">
             {error}
           </div>
         )}
 
         {/* Result Modal */}
         {showResult && resultReward && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <Card className="w-full max-w-sm text-center">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] w-full max-w-sm p-6 text-center">
               <div className="py-4">
-                <p className="text-5xl mb-3">
-                  {resultReward.type === "NONE" ? "😢" : "🎉"}
-                </p>
-                <h3 className="text-xl font-bold mb-1">
+                <div className={`w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center ${
+                  resultReward.type === "NONE" ? "bg-[var(--color-surface-elevated)]" : "bg-[var(--color-primary)]/15"
+                }`}>
+                  {resultReward.type === "NONE" ? (
+                    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+                      <circle cx="18" cy="18" r="12" stroke="#64748B" strokeWidth="2"/>
+                      <path d="M12 12L24 24M24 12L12 24" stroke="#64748B" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+                      <path d="M18 4L22 14L32 15L25 22L27 32L18 27L9 32L11 22L4 15L14 14L18 4Z" fill="#22C55E" fillOpacity="0.4" stroke="#22C55E" strokeWidth="1.5"/>
+                    </svg>
+                  )}
+                </div>
+                <h3 className="text-xl font-bold text-[var(--color-text)] mb-1">
                   {resultReward.type === "NONE" ? "아쉽네요!" : "축하합니다!"}
                 </h3>
                 <p className="text-lg font-semibold" style={{ color: resultReward.color }}>
@@ -150,7 +159,7 @@ export default function RoulettePage() {
                   {resultReward.type === "SHIELD" && " 획득!"}
                   {resultReward.type !== "NONE" && resultReward.type !== "SHIELD" && " 획득!"}
                 </p>
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-sm text-[var(--color-text-muted)] mt-2">
                   남은 횟수: {status?.remainingPlays || 0}회
                 </p>
                 <Button
@@ -161,7 +170,7 @@ export default function RoulettePage() {
                   확인
                 </Button>
               </div>
-            </Card>
+            </div>
           </div>
         )}
 
@@ -181,8 +190,8 @@ export default function RoulettePage() {
         </Button>
 
         {/* Reward Table */}
-        <Card>
-          <h3 className="text-sm font-semibold text-gray-500 mb-3">보상 확률표</h3>
+        <div className="bg-[var(--color-surface)] rounded-2xl p-4 border border-[var(--color-border)]">
+          <h3 className="text-xs font-semibold text-[var(--color-text-muted)] mb-3 uppercase tracking-wider">보상 확률표</h3>
           <div className="space-y-2">
             {ROULETTE_REWARDS.map((reward, i) => {
               const totalWeight = ROULETTE_REWARDS.reduce((s, r) => s + r.weight, 0);
@@ -194,14 +203,14 @@ export default function RoulettePage() {
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: reward.color }}
                     />
-                    <span className="text-gray-700">{reward.label}</span>
+                    <span className="text-[var(--color-text-secondary)]">{reward.label}</span>
                   </div>
-                  <span className="text-gray-400 num">{pct}%</span>
+                  <span className="text-[var(--color-text-muted)] num">{pct}%</span>
                 </div>
               );
             })}
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

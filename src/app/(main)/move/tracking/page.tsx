@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
-import Card from "@/components/ui/Card";
 import TransportSelector from "@/components/move/TransportSelector";
 import { useMovementStore } from "@/stores/movementStore";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -144,11 +143,14 @@ export default function TrackingPage() {
   return (
     <div className="min-h-dvh bg-[var(--color-bg)]">
       {/* Top status */}
-      <div className="bg-[var(--color-primary)] text-white px-4 py-6">
+      <div className="bg-gradient-to-br from-green-600 to-emerald-700 text-white px-4 py-6">
         <div className="max-w-lg mx-auto">
           <div className="flex justify-between items-center mb-4">
-            <span className="text-sm opacity-80">이동 중</span>
-            <span className="text-sm font-mono bg-white/20 rounded-full px-3 py-1">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-300 animate-pulse" />
+              <span className="text-sm opacity-90">이동 중</span>
+            </div>
+            <span className="text-sm font-mono bg-white/15 backdrop-blur-sm rounded-full px-3 py-1">
               {formatDuration(elapsedSec)}
             </span>
           </div>
@@ -161,25 +163,25 @@ export default function TrackingPage() {
 
       {/* Stats grid */}
       <div className="px-4 -mt-4">
-        <Card className="grid grid-cols-3 gap-4 text-center">
+        <div className="bg-[var(--color-surface)] rounded-2xl p-4 border border-[var(--color-border)] grid grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-lg font-bold text-[var(--color-primary)] num">{estimatedSc}</p>
-            <p className="text-[10px] text-gray-500">예상 SC</p>
+            <p className="text-[10px] text-[var(--color-text-muted)]">예상 SC</p>
           </div>
           <div>
-            <p className="text-lg font-bold text-gray-900 num">{formatSpeed(currentSpeed)}</p>
-            <p className="text-[10px] text-gray-500">현재 속도</p>
+            <p className="text-lg font-bold text-[var(--color-text)] num">{formatSpeed(currentSpeed)}</p>
+            <p className="text-[10px] text-[var(--color-text-muted)]">현재 속도</p>
           </div>
           <div>
-            <p className="text-lg font-bold text-gray-900 num">{currentTransport}</p>
-            <p className="text-[10px] text-gray-500">이동수단</p>
+            <p className="text-lg font-bold text-[var(--color-text)] num">{currentTransport}</p>
+            <p className="text-[10px] text-[var(--color-text-muted)]">이동수단</p>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* GPS Error */}
       {error && (
-        <div className="mx-4 mt-3 bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">
+        <div className="mx-4 mt-3 bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-sm text-red-400">
           {error}
         </div>
       )}
@@ -188,8 +190,12 @@ export default function TrackingPage() {
       <div className="px-4 mt-4">
         <button
           onClick={() => setShowTransportSwitch(!showTransportSwitch)}
-          className="text-sm text-[var(--color-primary)] font-medium"
+          className="text-sm text-[var(--color-primary)] font-medium flex items-center gap-1"
         >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M2 5L8 2L14 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M2 11L8 14L14 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
           {showTransportSwitch ? "닫기" : "이동수단 변경"}
         </button>
         {showTransportSwitch && (
@@ -200,7 +206,7 @@ export default function TrackingPage() {
       </div>
 
       {/* Actions */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t safe-bottom">
+      <div className="fixed bottom-0 left-0 right-0 p-4 glass border-t border-[var(--color-border)] safe-bottom">
         <div className="max-w-lg mx-auto flex gap-3">
           <Button variant="outline" onClick={handleCancel} className="flex-1">
             취소

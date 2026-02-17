@@ -21,12 +21,14 @@ model User {
 
   coinBalance     CoinBalance?
   stride          Stride?
+  character       Character?
   movements       Movement[]
   coinTransactions CoinTransaction[]
   dailyEarnings   DailyEarning[]
   purchases       Purchase[]
   roulettePlays   RoulettePlay[]
   quizAttempts    QuizAttempt[]
+  nfts            UserNft[]
 }
 
 model CoinBalance {
@@ -178,6 +180,100 @@ model QuizAttempt {
   question QuizQuestion @relation(fields: [questionId], references: [id])
 
   @@index([userId, createdAt])
+}
+
+model QrCode {
+  id          String    @id @default(cuid())
+  code        String    @unique // e.g. STEPMEAL-QR-001
+  mcReward    Int
+  description String?
+  isUsed      Boolean   @default(false)
+  usedBy      String?   // userId
+  usedAt      DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model NftTemplate {
+  id             String    @id @default(cuid())
+  name           String
+  description    String?
+  imageEmoji     String
+  rarity         String    // COMMON, RARE, EPIC, LEGENDARY
+  category       String    @default("BADGE") // BADGE, CHARACTER, LANDSCAPE (legacy)
+  nftType        String    @default("BOOSTER") // BOOSTER, ACCESSORY, VEHICLE
+  priceMc        Int
+  maxSupply      Int       @default(-1) // -1 = unlimited
+  mintedCount    Int       @default(0)
+  scBonusPercent Int       @default(0) // SC bonus %, e.g. 5, 10, 20, 30
+  isActive       Boolean   @default(true)
+  // Booster: tier (BRONZE, SILVER, GOLD, PLATINUM, DIAMOND)
+  tier           String?
+  // Accessory: slot (HEADGEAR, HANDGEAR, FOOTGEAR, BODYGEAR)
+  slot           String?
+  // Accessory: conditional ability JSON {condition, effect, value}
+  ability        String?
+  // Vehicle: matched transport types JSON ["RUN","WALK"]
+  matchedTransports String?
+  // Vehicle: transport class (BODY, ECO, RIDE)
+  transportClass String?
+  // Vehicle: synergy bonus percent when matched
+  synergyPercent Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  userNfts UserNft[]
+}
+
+model UserNft {
+  id              String   @id @default(cuid())
+  userId          String
+  templateId      String
+  mintNumber      Int      // e.g. #3 of 100
+  enhanceLevel    Int      @default(0) // +0 ~ +5
+  isEquipped      Boolean  @default(false)
+  equippedSlot    String?  // BOOSTER, HEADGEAR, HANDGEAR, FOOTGEAR, BODYGEAR, VEHICLE
+  mintedAt        DateTime @default(now())
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template NftTemplate @relation(fields: [templateId], references: [id])
+
+  @@index([userId])
+  @@index([userId, isEquipped])
+}
+
+model Character {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  name            String   @default("나의 캐릭터")
+  avatarType      String   @default("DEFAULT") // DEFAULT, RUNNER, CYCLIST, EXPLORER, ...
+  isNftAvatar     Boolean  @default(false) // true if using premium NFT avatar
+  nftAvatarId     String?  // reference to UserNft if premium
+
+  // Class system
+  mainClass       String   @default("BODY") // BODY, ECO, RIDE
+  subClass        String?  // secondary class
+
+  // Level & EXP
+  level           Int      @default(1)
+  exp             Int      @default(0)
+  expToNext       Int      @default(100) // EXP needed for next level
+
+  // 4 Stats (base + bonus from level/gear)
+  statEff         Int      @default(10) // Efficiency: SC earn rate
+  statLck         Int      @default(5)  // Luck: bonus reward chance
+  statChm         Int      @default(5)  // Charisma: social/game bonus
+  statHp          Int      @default(10) // HP: condition decay rate
+
+  // Condition (0-100, affects SC earning)
+  condition       Int      @default(100) // current condition
+  maxCondition    Int      @default(100)
+  lastCondDecay   DateTime @default(now())
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model DailyEarning {

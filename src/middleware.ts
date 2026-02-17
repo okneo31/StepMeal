@@ -15,5 +15,9 @@ export const config = {
     "/api/stats/:path*",
     "/api/store/:path*",
     "/api/game/:path*",
+    "/qr/:path*",
+    "/nft/:path*",
+    "/api/qr/:path*",
+    "/api/nft/:path*",
   ],
 };

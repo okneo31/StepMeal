@@ -93,6 +93,98 @@ export const ROULETTE_REWARDS = [
 export const QUIZ_MC_REWARD = 20;
 export const QUIZ_DAILY_LIMIT = 3;
 
+// === QR Code ===
+export const QR_SCAN_DAILY_LIMIT = 10;
+
+// === NFT ===
+export const NFT_RARITY = {
+  COMMON:    { label: '커먼',      color: '#94A3B8', bgColor: 'rgba(148,163,184,0.1)', textColor: '#94A3B8', bonusPercent: 5 },
+  RARE:      { label: '레어',      color: '#3B82F6', bgColor: 'rgba(59,130,246,0.1)',  textColor: '#60A5FA', bonusPercent: 10 },
+  EPIC:      { label: '에픽',      color: '#A855F7', bgColor: 'rgba(168,85,247,0.1)',  textColor: '#C084FC', bonusPercent: 20 },
+  LEGENDARY: { label: '레전더리',  color: '#F59E0B', bgColor: 'rgba(245,158,11,0.1)',  textColor: '#FBBF24', bonusPercent: 30 },
+} as const;
+
+// === NFT 3-Type System ===
+export const NFT_TYPES = {
+  BOOSTER:   { label: '부스터',   emoji: '🔥', color: '#EF4444', description: '모든 이동에 SC 보너스' },
+  ACCESSORY: { label: '악세서리', emoji: '⚡', color: '#3B82F6', description: '조건부 특수 능력' },
+  VEHICLE:   { label: '탈것',     emoji: '🚀', color: '#A855F7', description: '이동수단 시너지 보너스' },
+} as const;
+
+export const BOOSTER_TIERS = {
+  BRONZE:   { label: '브론즈',   bonusPercent: 8,  color: '#CD7F32' },
+  SILVER:   { label: '실버',     bonusPercent: 15, color: '#C0C0C0' },
+  GOLD:     { label: '골드',     bonusPercent: 25, color: '#FFD700' },
+  PLATINUM: { label: '플래티넘', bonusPercent: 40, color: '#E5E4E2' },
+  DIAMOND:  { label: '다이아',   bonusPercent: 60, color: '#B9F2FF' },
+} as const;
+
+export const ACCESSORY_SLOTS = {
+  HEADGEAR: { label: '헤드기어', emoji: '🎩', description: '날씨 보너스 강화' },
+  HANDGEAR: { label: '핸드기어', emoji: '🧤', description: '칼로리 보너스' },
+  FOOTGEAR: { label: '풋기어',   emoji: '👟', description: '이동 배율 강화' },
+  BODYGEAR: { label: '바디기어', emoji: '🦺', description: 'Stride 보호 강화' },
+} as const;
+
+export const EQUIP_SLOTS = ['BOOSTER', 'HEADGEAR', 'HANDGEAR', 'FOOTGEAR', 'BODYGEAR', 'VEHICLE'] as const;
+
+export const VEHICLE_SYNERGY = {
+  MATCHED:    1.0,  // 100% synergy when transport matches
+  SAME_CLASS: 0.7,  // 70% when same class
+  OTHER_CLASS: 0.4, // 40% when different class
+} as const;
+
+export const ENHANCE_RATES = [0.9, 0.75, 0.6, 0.45, 0.3] as const; // +1~+5 success rates
+export const ENHANCE_BONUS_PER_LEVEL = 5; // +5% per enhance level
+
+export const SET_BONUS = {
+  TWO_TYPES: 10,   // 2종 장착 시 +10% SC
+  THREE_TYPES: 25, // 3종 장착 시 +25% SC
+} as const;
+
+// === Character System ===
+export const CHARACTER_AVATARS = {
+  DEFAULT:  { label: '기본',      emoji: '🏃', color: '#22C55E', description: '기본 캐릭터' },
+  RUNNER:   { label: '러너',      emoji: '🏃‍♂️', color: '#EF4444', description: '달리기 특화' },
+  CYCLIST:  { label: '사이클리스트', emoji: '🚴', color: '#3B82F6', description: '자전거 특화' },
+  EXPLORER: { label: '탐험가',    emoji: '🧭', color: '#A855F7', description: '다양한 이동수단' },
+  RIDER:    { label: '라이더',    emoji: '🛵', color: '#F59E0B', description: '탈것 특화' },
+  ATHLETE:  { label: '운동선수',  emoji: '💪', color: '#06B6D4', description: '체력 특화' },
+  CHAMPION: { label: '챔피언',    emoji: '🏆', color: '#FFD700', description: 'NFT 전용' },
+} as const;
+
+export const CHARACTER_CLASSES = {
+  BODY: { label: 'Body', description: '도보/달리기', color: '#22C55E', transports: ['RUN', 'WALK'] },
+  ECO:  { label: 'Eco',  description: '자전거/킥보드', color: '#3B82F6', transports: ['BIKE', 'SCOOTER'] },
+  RIDE: { label: 'Ride', description: '버스/기차/자동차', color: '#A855F7', transports: ['BUS', 'TRAIN', 'CAR'] },
+} as const;
+
+export const CHARACTER_STAT_LABELS = {
+  EFF: { label: 'EFF', fullLabel: 'Efficiency', color: '#22C55E', description: 'SC 획득 효율' },
+  LCK: { label: 'LCK', fullLabel: 'Luck',       color: '#F59E0B', description: '보너스 보상 확률' },
+  CHM: { label: 'CHM', fullLabel: 'Charisma',    color: '#A855F7', description: '게임/소셜 보너스' },
+  HP:  { label: 'HP',  fullLabel: 'HP',           color: '#EF4444', description: '컨디션 감소 속도' },
+} as const;
+
+// EXP needed per level: level 1->2 = 100, 2->3 = 150, etc.
+export const EXP_PER_LEVEL = (level: number) => Math.floor(100 * Math.pow(1.15, level - 1));
+
+// Stats gained per level
+export const STATS_PER_LEVEL = 3; // 3 stat points per level
+
+// Condition decay: -5 per movement, QR food restores +20
+export const CONDITION_DECAY_PER_MOVE = 5;
+export const CONDITION_RESTORE_PER_QR = 20;
+export const CONDITION_SC_MULTIPLIER = (condition: number) => {
+  if (condition >= 80) return 1.0;
+  if (condition >= 50) return 0.8;
+  if (condition >= 20) return 0.5;
+  return 0.2;
+};
+
+// EXP earned per movement (based on distance)
+export const EXP_PER_KM = 10;
+
 // === Anti-cheat ===
 export const GPS_UPDATE_INTERVAL = 30000; // 30 seconds
 export const MAX_GPS_JUMP_METERS = 500; // Max jump in one update

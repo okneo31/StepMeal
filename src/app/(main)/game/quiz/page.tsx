@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Header from "@/components/layout/Header";
-import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import QuizOption from "@/components/game/QuizOption";
 import Spinner from "@/components/ui/Spinner";
@@ -92,11 +91,17 @@ export default function QuizPage() {
       <div>
         <Header title="데일리 퀴즈" showBack />
         <div className="px-4 py-12 text-center">
-          <p className="text-5xl mb-4">🧠</p>
-          <h3 className="text-lg font-bold text-gray-800 mb-2">
+          <div className="w-20 h-20 rounded-full bg-blue-500/10 border-2 border-blue-500/20 flex items-center justify-center mx-auto mb-4">
+            <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+              <circle cx="18" cy="18" r="12" stroke="#3B82F6" strokeWidth="2"/>
+              <path d="M14 14C14 11.8 15.8 10 18 10C20.2 10 22 11.8 22 14C22 16 20 16.5 20 19" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round"/>
+              <circle cx="18" cy="24" r="1.5" fill="#3B82F6"/>
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold text-[var(--color-text)] mb-2">
             오늘의 퀴즈를 모두 풀었습니다!
           </h3>
-          <p className="text-sm text-gray-500">내일 다시 도전해주세요.</p>
+          <p className="text-sm text-[var(--color-text-muted)]">내일 다시 도전해주세요.</p>
         </div>
       </div>
     );
@@ -108,10 +113,14 @@ export default function QuizPage() {
       <div className="px-4 py-4 space-y-4">
         {/* Status */}
         <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500">
-            남은 횟수: <strong className="text-gray-800 num">{remainingAttempts}회</strong>
+          <span className="text-sm text-[var(--color-text-muted)]">
+            남은 횟수: <strong className="text-[var(--color-text)] num">{remainingAttempts}회</strong>
           </span>
-          <span className="text-sm text-amber-600 font-medium">
+          <span className="text-sm text-amber-400 font-medium flex items-center gap-1">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="5" fill="#F59E0B" fillOpacity="0.3" stroke="#F59E0B" strokeWidth="1"/>
+              <path d="M5 6H9M5 8H9" stroke="#F59E0B" strokeWidth="0.8" strokeLinecap="round"/>
+            </svg>
             정답 시 20 MC
           </span>
         </div>
@@ -119,11 +128,11 @@ export default function QuizPage() {
         {/* Question */}
         {question && (
           <>
-            <Card>
-              <p className="text-base font-semibold text-gray-800 leading-relaxed">
+            <div className="bg-[var(--color-surface)] rounded-2xl p-4 border border-blue-500/20">
+              <p className="text-base font-semibold text-[var(--color-text)] leading-relaxed">
                 {question.question}
               </p>
-            </Card>
+            </div>
 
             {/* Options */}
             <div className="space-y-3">
@@ -143,20 +152,34 @@ export default function QuizPage() {
 
             {/* Result */}
             {result && (
-              <Card className={result.isCorrect ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}>
-                <div className="text-center">
-                  <p className="text-3xl mb-2">{result.isCorrect ? "🎉" : "😢"}</p>
-                  <h3 className="font-bold text-lg mb-1">
-                    {result.isCorrect ? "정답입니다!" : "틀렸습니다"}
-                  </h3>
-                  {result.isCorrect && (
-                    <p className="text-amber-700 font-semibold num">+{result.mcEarned} MC</p>
-                  )}
-                  {result.explanation && (
-                    <p className="text-sm text-gray-600 mt-2">{result.explanation}</p>
+              <div className={`rounded-2xl p-4 border text-center ${
+                result.isCorrect
+                  ? "bg-green-500/10 border-green-500/20"
+                  : "bg-red-500/10 border-red-500/20"
+              }`}>
+                <div className={`w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center ${
+                  result.isCorrect ? "bg-green-500/20" : "bg-red-500/20"
+                }`}>
+                  {result.isCorrect ? (
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                      <path d="M8 16L14 22L24 10" stroke="#22C55E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                      <path d="M10 10L22 22M22 10L10 22" stroke="#EF4444" strokeWidth="3" strokeLinecap="round"/>
+                    </svg>
                   )}
                 </div>
-              </Card>
+                <h3 className="font-bold text-lg text-[var(--color-text)] mb-1">
+                  {result.isCorrect ? "정답입니다!" : "틀렸습니다"}
+                </h3>
+                {result.isCorrect && (
+                  <p className="text-amber-400 font-semibold num">+{result.mcEarned} MC</p>
+                )}
+                {result.explanation && (
+                  <p className="text-sm text-[var(--color-text-secondary)] mt-2">{result.explanation}</p>
+                )}
+              </div>
             )}
 
             {/* Action Button */}

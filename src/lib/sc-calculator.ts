@@ -50,9 +50,10 @@ export function calculateMovementSc(
   strideLevel: number,
   weather: WeatherType = 'CLEAR',
   date: Date = new Date(),
+  nftBonusPercent: number = 0,
 ): ScBreakdown {
   if (segments.length === 0) {
-    return { baseSc: 0, transportMult: 1, strideMult: 1, timeMult: 1, weatherMult: 1, multiMult: 1, bonusSc: 0, totalSc: 0 };
+    return { baseSc: 0, transportMult: 1, strideMult: 1, timeMult: 1, weatherMult: 1, multiMult: 1, nftMult: 1, bonusSc: 0, totalSc: 0 };
   }
 
   // Calculate base SC per segment
@@ -75,8 +76,11 @@ export function calculateMovementSc(
   // Multi-modal bonus
   const multiMult = getMultiModalBonus(segments);
 
+  // NFT bonus multiplier (e.g. 20% = 1.20)
+  const nftMult = 1 + nftBonusPercent / 100;
+
   // Calculate total
-  let totalSc = Math.floor(baseSc * strideMult * timeMult * weatherMult * multiMult);
+  let totalSc = Math.floor(baseSc * strideMult * timeMult * weatherMult * multiMult * nftMult);
 
   // Apply daily cap
   const dailyCap = strideInfo.dailyCap;
@@ -89,6 +93,7 @@ export function calculateMovementSc(
     timeMult,
     weatherMult,
     multiMult,
+    nftMult,
     bonusSc: 0,
     totalSc,
   };

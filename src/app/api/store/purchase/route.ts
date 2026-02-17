@@ -15,6 +15,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "상품 ID가 필요합니다." }, { status: 400 });
     }
 
+    if (typeof quantity !== 'number' || quantity < 1 || !Number.isInteger(quantity) || quantity > 99) {
+      return NextResponse.json({ error: "수량이 올바르지 않습니다." }, { status: 400 });
+    }
+
     const item = await prisma.storeItem.findUnique({
       where: { id: storeItemId },
     });
@@ -97,8 +101,8 @@ export async function POST(req: Request) {
               data: { shieldCount: { increment: quantity } },
             });
           }
-        } catch {
-          // ignore metadata parse errors
+        } catch (e) {
+          console.warn("Store item metadata parse error:", item.id, e);
         }
       }
 

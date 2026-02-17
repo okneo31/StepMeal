@@ -42,8 +42,15 @@ export default function LoginPage() {
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-[var(--color-primary)]">StepMeal</h1>
-        <p className="mt-2 text-gray-500 text-sm">움직여서 벌고, 건강하게 먹자</p>
+        <div className="w-20 h-20 rounded-full bg-[var(--color-primary)]/15 border-2 border-[var(--color-primary)]/30 flex items-center justify-center mx-auto mb-4">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <circle cx="18" cy="10" r="4" fill="#22C55E" fillOpacity="0.6"/>
+            <path d="M18 15V24L14 32M18 24L22 32" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round"/>
+            <path d="M12 19L18 17L24 19" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round"/>
+          </svg>
+        </div>
+        <h1 className="text-3xl font-bold text-gradient-green">StepMeal</h1>
+        <p className="mt-2 text-[var(--color-text-muted)] text-sm">움직여서 벌고, 건강하게 먹자</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -63,13 +70,13 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+        {error && <p className="text-sm text-red-400 text-center">{error}</p>}
         <Button type="submit" fullWidth loading={loading}>
           로그인
         </Button>
       </form>
 
-      <p className="text-center text-sm text-gray-500">
+      <p className="text-center text-sm text-[var(--color-text-muted)]">
         계정이 없으신가요?{" "}
         <Link href="/signup" className="text-[var(--color-primary)] font-semibold">
           회원가입

@@ -49,6 +49,7 @@ export interface ScBreakdown {
   timeMult: number;
   weatherMult: number;
   multiMult: number;
+  nftMult: number;
   bonusSc: number;
   totalSc: number;
 }
@@ -109,4 +110,85 @@ export interface QuizAnswerResult {
   explanation: string | null;
   mcEarned: number;
   remainingAttempts: number;
+}
+
+// === NFT Types ===
+export type NftRarity = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+export type NftCategory = 'BADGE' | 'CHARACTER' | 'LANDSCAPE';
+export type NftType = 'BOOSTER' | 'ACCESSORY' | 'VEHICLE';
+export type BoosterTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'DIAMOND';
+export type AccessorySlot = 'HEADGEAR' | 'HANDGEAR' | 'FOOTGEAR' | 'BODYGEAR';
+export type EquipSlot = 'BOOSTER' | 'HEADGEAR' | 'HANDGEAR' | 'FOOTGEAR' | 'BODYGEAR' | 'VEHICLE';
+
+export interface NftAbility {
+  condition: string; // e.g. "RAIN", "STREAK_7", "DAWN"
+  effect: string;    // e.g. "SC_BONUS", "CALORIE_BONUS", "SHIELD_SAVE"
+  value: number;     // e.g. 15 (percent)
+}
+
+export interface NftTemplateDisplay {
+  id: string;
+  name: string;
+  description: string | null;
+  imageEmoji: string;
+  rarity: NftRarity;
+  category: NftCategory;
+  nftType: NftType;
+  priceMc: number;
+  maxSupply: number;
+  mintedCount: number;
+  scBonusPercent: number;
+  isActive: boolean;
+  // Booster
+  tier: BoosterTier | null;
+  // Accessory
+  slot: AccessorySlot | null;
+  ability: NftAbility | null;
+  // Vehicle
+  matchedTransports: TransportType[] | null;
+  transportClass: TransportClass | null;
+  synergyPercent: number;
+}
+
+export interface UserNftDisplay {
+  id: string;
+  templateId: string;
+  mintNumber: number;
+  enhanceLevel: number;
+  isEquipped: boolean;
+  equippedSlot: EquipSlot | null;
+  mintedAt: string;
+  template: NftTemplateDisplay;
+}
+
+// === Character Types ===
+export type CharacterClass = 'BODY' | 'ECO' | 'RIDE';
+export type AvatarType = 'DEFAULT' | 'RUNNER' | 'CYCLIST' | 'EXPLORER' | 'RIDER' | 'ATHLETE' | 'CHAMPION';
+export type CharacterStat = 'EFF' | 'LCK' | 'CHM' | 'HP';
+
+export interface CharacterDisplay {
+  id: string;
+  name: string;
+  avatarType: AvatarType;
+  isNftAvatar: boolean;
+  mainClass: CharacterClass;
+  subClass: CharacterClass | null;
+  level: number;
+  exp: number;
+  expToNext: number;
+  statEff: number;
+  statLck: number;
+  statChm: number;
+  statHp: number;
+  condition: number;
+  maxCondition: number;
+}
+
+// === QR Types ===
+export interface QrScanResult {
+  success: boolean;
+  mcReward?: number;
+  description?: string;
+  newMcBalance?: number;
+  error?: string;
 }

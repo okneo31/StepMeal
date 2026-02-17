@@ -148,11 +148,53 @@ async function main() {
     },
   ];
 
+  await prisma.quizAttempt.deleteMany({});
   await prisma.quizQuestion.deleteMany({});
   for (const q of quizQuestions) {
     await prisma.quizQuestion.create({ data: q });
   }
   console.log("Seeded quiz questions:", quizQuestions.length);
+
+  // === QR Codes (10 codes) ===
+  const qrCodes = [
+    { code: "STEPMEAL-QR-001", mcReward: 30,  description: "프로틴 쉐이크 QR" },
+    { code: "STEPMEAL-QR-002", mcReward: 50,  description: "그래놀라 바 QR" },
+    { code: "STEPMEAL-QR-003", mcReward: 40,  description: "닭가슴살 샐러드 QR" },
+    { code: "STEPMEAL-QR-004", mcReward: 60,  description: "아사이볼 QR" },
+    { code: "STEPMEAL-QR-005", mcReward: 35,  description: "콤부차 QR" },
+    { code: "STEPMEAL-QR-006", mcReward: 45,  description: "견과류 믹스 QR" },
+    { code: "STEPMEAL-QR-007", mcReward: 70,  description: "프리미엄 세트 QR" },
+    { code: "STEPMEAL-QR-008", mcReward: 80,  description: "스페셜 박스 QR" },
+    { code: "STEPMEAL-QR-009", mcReward: 100, description: "럭셔리 패키지 QR" },
+    { code: "STEPMEAL-QR-010", mcReward: 50,  description: "이벤트 QR" },
+  ];
+
+  await prisma.qrCode.deleteMany({});
+  for (const qr of qrCodes) {
+    await prisma.qrCode.create({ data: qr });
+  }
+  console.log("Seeded QR codes:", qrCodes.length);
+
+  // === NFT Templates (10 templates) ===
+  const nftTemplates = [
+    { name: "첫걸음 뱃지",    imageEmoji: "👟", rarity: "COMMON",    category: "BADGE",     priceMc: 50,   maxSupply: -1, scBonusPercent: 5,  description: "모든 여정의 시작" },
+    { name: "러너 뱃지",      imageEmoji: "🏃", rarity: "COMMON",    category: "BADGE",     priceMc: 80,   maxSupply: -1, scBonusPercent: 5,  description: "달리는 자의 상징" },
+    { name: "에너지 드링크",  imageEmoji: "🧃", rarity: "COMMON",    category: "BADGE",     priceMc: 60,   maxSupply: -1, scBonusPercent: 5,  description: "에너지 충전!" },
+    { name: "스텝 고양이",    imageEmoji: "🐱", rarity: "RARE",      category: "CHARACTER", priceMc: 150,  maxSupply: 100, scBonusPercent: 10, description: "함께 걷는 고양이 친구" },
+    { name: "스텝 강아지",    imageEmoji: "🐕", rarity: "RARE",      category: "CHARACTER", priceMc: 150,  maxSupply: 100, scBonusPercent: 10, description: "함께 뛰는 강아지 친구" },
+    { name: "한강 러닝",      imageEmoji: "🌉", rarity: "RARE",      category: "LANDSCAPE", priceMc: 200,  maxSupply: 50,  scBonusPercent: 10, description: "한강변의 아름다운 야경" },
+    { name: "골든 러너",      imageEmoji: "🏅", rarity: "EPIC",      category: "BADGE",     priceMc: 400,  maxSupply: 30,  scBonusPercent: 20, description: "금빛으로 빛나는 러너" },
+    { name: "벚꽃길 산책",    imageEmoji: "🌸", rarity: "EPIC",      category: "LANDSCAPE", priceMc: 500,  maxSupply: 20,  scBonusPercent: 20, description: "봄날의 벚꽃길" },
+    { name: "다이아 워커",    imageEmoji: "💎", rarity: "LEGENDARY", category: "BADGE",     priceMc: 1000, maxSupply: 10,  scBonusPercent: 30, description: "다이아몬드처럼 빛나는 워커" },
+    { name: "유니콘 러너",    imageEmoji: "🦄", rarity: "LEGENDARY", category: "CHARACTER", priceMc: 1500, maxSupply: 5,   scBonusPercent: 30, description: "전설의 유니콘과 함께" },
+  ];
+
+  await prisma.userNft.deleteMany({});
+  await prisma.nftTemplate.deleteMany({});
+  for (const nft of nftTemplates) {
+    await prisma.nftTemplate.create({ data: nft });
+  }
+  console.log("Seeded NFT templates:", nftTemplates.length);
 }
 
 main()
