@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { QR_SCAN_DAILY_LIMIT } from "@/lib/constants";
 
-const PARTNER_API_URL = process.env.PARTNER_API_URL || "http://localhost/stepmeal-partner/api/verify.php";
+const PARTNER_API_URL = process.env.PARTNER_API_URL || "https://qr.stepmeal.top/api/verify.php";
 
 interface PartnerVerifyResponse {
   success: boolean;
