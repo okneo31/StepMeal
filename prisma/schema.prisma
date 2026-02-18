@@ -34,6 +34,7 @@ model User {
   questReviews    QuestReview[]
   orders          Order[]
   ringBets        RingBet[]
+  gamePlays       GamePlay[]
 
   // Theme system
   activeTheme     String   @default("default")
@@ -388,4 +389,22 @@ model RingBet {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, createdAt])
   @@index([round, status])
+}
+
+model GamePlay {
+  id          String    @id @default(cuid())
+  userId      String
+  gameType    String    // COINFLIP, DICE, PREDICTION
+  coinType    String    // SC or MC
+  betAmount   Int
+  betChoice   String    // heads/tails, odd/even/high/low/exact:N, 1/2/3/5 (km)
+  result      String?   // heads/tails, 1-6, distance
+  multiplier  Float     @default(0)
+  payout      Int       @default(0)
+  status      String    @default("PENDING") // PENDING, WON, LOST
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, gameType, createdAt])
 }

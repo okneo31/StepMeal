@@ -26,24 +26,58 @@ const games = [
     iconBg: "bg-purple-500/10",
   },
   {
-    href: "/game/ring",
+    href: "/game/coinflip",
     icon: (
       <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
         <circle cx="18" cy="18" r="14" stroke="#F59E0B" strokeWidth="2"/>
-        <circle cx="18" cy="18" r="9" stroke="#F59E0B" strokeWidth="1.5" strokeDasharray="4 2"/>
-        <circle cx="18" cy="18" r="4" fill="#F59E0B" fillOpacity="0.4"/>
-        <path d="M18 4V8" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round"/>
-        <path d="M28 10L25 12.5" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round"/>
-        <path d="M8 10L11 12.5" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round"/>
+        <circle cx="18" cy="18" r="9" stroke="#F59E0B" strokeWidth="1.5" fill="#F59E0B" fillOpacity="0.1"/>
+        <text x="18" y="22" textAnchor="middle" fill="#F59E0B" fontSize="12" fontWeight="bold">MC</text>
       </svg>
     ),
-    title: "1분링",
-    description: "1분마다 결과가 나오는 링 게임! 슬롯(2/3/5배) 또는 숫자(50배)에 베팅하세요.",
-    badge: "SC·MC 베팅",
+    title: "코인 플립",
+    description: "앞면? 뒷면? MC를 베팅하고 맞추면 2배! 간단하고 빠른 게임.",
+    badge: "하루 10회",
     borderColor: "border-amber-500/20",
     glowClass: "glow-amber",
     badgeColor: "bg-amber-500/15 text-amber-400 border border-amber-500/20",
     iconBg: "bg-amber-500/10",
+  },
+  {
+    href: "/game/dice",
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <rect x="4" y="4" width="28" height="28" rx="6" stroke="#EF4444" strokeWidth="2"/>
+        <circle cx="12" cy="12" r="2.5" fill="#EF4444" fillOpacity="0.6"/>
+        <circle cx="24" cy="12" r="2.5" fill="#EF4444" fillOpacity="0.6"/>
+        <circle cx="18" cy="18" r="2.5" fill="#EF4444" fillOpacity="0.6"/>
+        <circle cx="12" cy="24" r="2.5" fill="#EF4444" fillOpacity="0.6"/>
+        <circle cx="24" cy="24" r="2.5" fill="#EF4444" fillOpacity="0.6"/>
+      </svg>
+    ),
+    title: "주사위",
+    description: "홀짝(2배), 대소(2배), 정확한 숫자(6배)! SC 또는 MC로 베팅.",
+    badge: "하루 10회",
+    borderColor: "border-red-500/20",
+    glowClass: "glow-red",
+    badgeColor: "bg-red-500/15 text-red-400 border border-red-500/20",
+    iconBg: "bg-red-500/10",
+  },
+  {
+    href: "/game/prediction",
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <circle cx="18" cy="18" r="14" stroke="#22C55E" strokeWidth="2"/>
+        <path d="M18 8V18L24 24" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M10 28L14 24L18 26L22 20L26 22" stroke="#22C55E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/>
+      </svg>
+    ),
+    title: "걸음수 예측",
+    description: "오늘 이동할 거리를 예측하고 SC를 베팅! 달성하면 최대 5배 보상.",
+    badge: "하루 1회",
+    borderColor: "border-green-500/20",
+    glowClass: "glow-green",
+    badgeColor: "bg-green-500/15 text-green-400 border border-green-500/20",
+    iconBg: "bg-green-500/10",
   },
   {
     href: "/game/quiz",
