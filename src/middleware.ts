@@ -19,5 +19,7 @@ export const config = {
     "/nft/:path*",
     "/api/qr/:path*",
     "/api/nft/:path*",
+    "/admin/:path*",
+    "/api/admin/:path*",
   ],
 };
