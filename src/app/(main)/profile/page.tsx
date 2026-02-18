@@ -1,8 +1,9 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -24,11 +25,18 @@ interface MyNft {
 
 export default function ProfilePage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [stride, setStride] = useState<any>(null);
   const [balance, setBalance] = useState<any>(null);
   const [nfts, setNfts] = useState<MyNft[]>([]);
   const [nftBonus, setNftBonus] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // Weight modal
+  const [showWeightModal, setShowWeightModal] = useState(false);
+  const [weight, setWeight] = useState(70);
+  const [weightSaving, setWeightSaving] = useState(false);
+  const weightInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     Promise.all([
@@ -43,6 +51,28 @@ export default function ProfilePage() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
+
+  const openWeightModal = () => {
+    fetch("/api/user/weight")
+      .then((r) => r.json())
+      .then((d) => setWeight(d.weight || 70))
+      .catch(() => {});
+    setShowWeightModal(true);
+    setTimeout(() => weightInputRef.current?.focus(), 100);
+  };
+
+  const saveWeight = async () => {
+    setWeightSaving(true);
+    try {
+      const res = await fetch("/api/user/weight", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weight }),
+      });
+      if (res.ok) setShowWeightModal(false);
+    } catch {}
+    setWeightSaving(false);
+  };
 
   if (loading) {
     return <div className="flex justify-center py-12"><Spinner /></div>;
@@ -183,21 +213,30 @@ export default function ProfilePage() {
 
         {/* Actions */}
         <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
-          <button className="w-full text-left py-3.5 px-4 border-b border-[var(--color-border)] text-sm text-[var(--color-text-secondary)] flex justify-between items-center hover:bg-[var(--color-surface-hover)] transition-colors">
+          <button
+            onClick={() => router.push("/profile/notifications")}
+            className="w-full text-left py-3.5 px-4 border-b border-[var(--color-border)] text-sm text-[var(--color-text-secondary)] flex justify-between items-center hover:bg-[var(--color-surface-hover)] transition-colors"
+          >
             <span>알림 설정</span>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M6 4L10 8L6 12" stroke="#64748B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
-          <button className="w-full text-left py-3.5 px-4 border-b border-[var(--color-border)] text-sm text-[var(--color-text-secondary)] flex justify-between items-center hover:bg-[var(--color-surface-hover)] transition-colors">
+          <button
+            onClick={openWeightModal}
+            className="w-full text-left py-3.5 px-4 border-b border-[var(--color-border)] text-sm text-[var(--color-text-secondary)] flex justify-between items-center hover:bg-[var(--color-surface-hover)] transition-colors"
+          >
             <span>체중 설정</span>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M6 4L10 8L6 12" stroke="#64748B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
-          <button className="w-full text-left py-3.5 px-4 text-sm text-[var(--color-text-secondary)] flex justify-between items-center hover:bg-[var(--color-surface-hover)] transition-colors">
+          <button
+            onClick={() => router.push("/profile/about")}
+            className="w-full text-left py-3.5 px-4 text-sm text-[var(--color-text-secondary)] flex justify-between items-center hover:bg-[var(--color-surface-hover)] transition-colors"
+          >
             <span>앱 정보</span>
-            <span className="text-[var(--color-text-muted)]">v0.1.0</span>
+            <span className="text-[var(--color-text-muted)]">v1.0.0</span>
           </button>
         </div>
 
@@ -210,6 +249,46 @@ export default function ProfilePage() {
           로그아웃
         </Button>
       </div>
+
+      {/* Weight Modal */}
+      {showWeightModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowWeightModal(false)} />
+          <div className="relative w-full max-w-lg bg-[var(--color-surface)] rounded-t-2xl p-5 pb-8 border-t border-[var(--color-border)] safe-bottom">
+            <div className="w-10 h-1 bg-[var(--color-border-light)] rounded-full mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-[var(--color-text)] mb-1">체중 설정</h3>
+            <p className="text-sm text-[var(--color-text-muted)] mb-4">정확한 칼로리 계산을 위해 체중을 입력하세요.</p>
+            <div className="flex items-center gap-3 mb-5">
+              <input
+                ref={weightInputRef}
+                type="number"
+                min={20}
+                max={300}
+                step={0.1}
+                value={weight}
+                onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
+                className="flex-1 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-lg font-bold text-[var(--color-text)] text-center outline-none focus:border-[var(--color-primary)] transition-colors"
+              />
+              <span className="text-sm font-semibold text-[var(--color-text-secondary)]">kg</span>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowWeightModal(false)}
+                className="flex-1 py-3 rounded-xl bg-[var(--color-surface-elevated)] text-sm font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={saveWeight}
+                disabled={weightSaving || weight < 20 || weight > 300}
+                className="flex-1 py-3 rounded-xl bg-[var(--color-primary)] text-sm font-bold text-black hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {weightSaving ? "저장 중..." : "저장"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
