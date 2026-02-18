@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { PREMIUM_THEME_IDS } from "@/lib/theme-config";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -99,8 +100,8 @@ export async function POST(req: Request) {
               where: { userId: session.user.id },
               data: { shieldCount: { increment: quantity } },
             });
-          } else if (meta.type === "THEME" && meta.themeId) {
-            // Unlock theme - check for duplicate
+          } else if (meta.type === "THEME") {
+            // Unlock all premium themes at once
             const user = await tx.user.findUnique({
               where: { id: session.user.id },
               select: { unlockedThemes: true },
@@ -111,17 +112,18 @@ export async function POST(req: Request) {
             } catch {
               unlocked = [];
             }
-            if (unlocked.includes(meta.themeId)) {
-              throw new Error("이미 해금된 테마입니다.");
+            const alreadyHasAll = PREMIUM_THEME_IDS.every((t) => unlocked.includes(t));
+            if (alreadyHasAll) {
+              throw new Error("이미 모든 테마가 해금되어 있습니다.");
             }
-            unlocked.push(meta.themeId);
+            const merged = [...new Set([...unlocked, ...PREMIUM_THEME_IDS])];
             await tx.user.update({
               where: { id: session.user.id },
-              data: { unlockedThemes: JSON.stringify(unlocked) },
+              data: { unlockedThemes: JSON.stringify(merged) },
             });
           }
         } catch (e) {
-          if (e instanceof Error && e.message === "이미 해금된 테마입니다.") {
+          if (e instanceof Error && e.message === "이미 모든 테마가 해금되어 있습니다.") {
             throw e;
           }
           console.warn("Store item metadata parse error:", item.id, e);

@@ -2,7 +2,7 @@ export interface ThemeConfig {
   id: string;
   name: string;
   description: string;
-  price: number; // MC
+  isPremium: boolean;
   previewColors: {
     primary: string;
     bg: string;
@@ -15,7 +15,7 @@ export const THEMES: ThemeConfig[] = [
     id: "default",
     name: "네온 그린",
     description: "기본 다크 테마. 네온 그린 액센트.",
-    price: 0,
+    isPremium: false,
     previewColors: {
       primary: "#22C55E",
       bg: "#0B0E14",
@@ -26,7 +26,7 @@ export const THEMES: ThemeConfig[] = [
     id: "midnight-gold",
     name: "미드나잇 골드",
     description: "럭셔리한 골드와 블랙의 조합.",
-    price: 300,
+    isPremium: true,
     previewColors: {
       primary: "#FFD700",
       bg: "#0D0B06",
@@ -37,7 +37,7 @@ export const THEMES: ThemeConfig[] = [
     id: "rose-quartz",
     name: "로즈 쿼츠",
     description: "우아하고 부드러운 핑크 로즈.",
-    price: 300,
+    isPremium: true,
     previewColors: {
       primary: "#F472B6",
       bg: "#120B0F",
@@ -48,7 +48,7 @@ export const THEMES: ThemeConfig[] = [
     id: "ocean-abyss",
     name: "오션 어비스",
     description: "깊은 심해의 시안 블루.",
-    price: 400,
+    isPremium: true,
     previewColors: {
       primary: "#06B6D4",
       bg: "#060D10",
@@ -59,7 +59,7 @@ export const THEMES: ThemeConfig[] = [
     id: "aurora",
     name: "오로라 보레알리스",
     description: "몽환적인 바이올렛 오로라.",
-    price: 400,
+    isPremium: true,
     previewColors: {
       primary: "#A78BFA",
       bg: "#0B0810",
@@ -70,7 +70,7 @@ export const THEMES: ThemeConfig[] = [
     id: "crimson-obsidian",
     name: "크림슨 옵시디언",
     description: "강렬한 레드와 옵시디언 블랙.",
-    price: 500,
+    isPremium: true,
     previewColors: {
       primary: "#EF4444",
       bg: "#100808",
@@ -78,6 +78,10 @@ export const THEMES: ThemeConfig[] = [
     },
   },
 ];
+
+export const PREMIUM_THEME_IDS = THEMES
+  .filter((t) => t.isPremium)
+  .map((t) => t.id);
 
 export function getThemeById(id: string): ThemeConfig | undefined {
   return THEMES.find((t) => t.id === id);

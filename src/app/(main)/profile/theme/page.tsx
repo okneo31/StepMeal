@@ -5,7 +5,7 @@ import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Spinner from "@/components/ui/Spinner";
 import { useTheme } from "@/components/providers/ThemeProvider";
-import { THEMES } from "@/lib/theme-config";
+import { THEMES, PREMIUM_THEME_IDS } from "@/lib/theme-config";
 
 export default function ThemeSelectPage() {
   const { theme: activeTheme, setTheme } = useTheme();
@@ -22,6 +22,7 @@ export default function ThemeSelectPage() {
       .catch(() => setLoading(false));
   }, []);
 
+  const isPremiumUnlocked = PREMIUM_THEME_IDS.every((id) => unlockedThemes.includes(id));
   const isUnlocked = (id: string) => id === "default" || unlockedThemes.includes(id);
   const isActive = (id: string) => activeTheme === id;
 
@@ -42,6 +43,27 @@ export default function ThemeSelectPage() {
         <p className="text-sm text-[var(--color-text-secondary)]">
           프리미엄 테마로 나만의 스타일을 완성하세요.
         </p>
+
+        {/* Premium unlock banner */}
+        {!isPremiumUnlocked && (
+          <Link
+            href="/store"
+            className="block bg-gradient-to-r from-amber-500/10 to-amber-500/5 rounded-2xl p-4 border border-amber-500/20 hover:border-amber-500/30 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-amber-400">프리미엄 테마 팩</p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">5종 테마 모두 영구 해금</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-bold text-amber-400">300 MC</span>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M6 4L10 8L6 12" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            </div>
+          </Link>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           {THEMES.map((t) => {
@@ -100,38 +122,20 @@ export default function ThemeSelectPage() {
                 <h3 className="text-sm font-bold text-[var(--color-text)] mb-0.5">{t.name}</h3>
                 <p className="text-xs text-[var(--color-text-muted)] line-clamp-1">{t.description}</p>
 
-                {/* Price / status */}
+                {/* Status */}
                 <div className="mt-2">
-                  {t.price === 0 ? (
+                  {!t.isPremium ? (
                     <span className="text-xs text-[var(--color-text-muted)]">무료</span>
                   ) : unlocked ? (
                     <span className="text-xs text-[var(--color-primary)] font-semibold">해금됨</span>
                   ) : (
-                    <span className="text-xs text-amber-400 font-semibold">{t.price} MC</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">프리미엄</span>
                   )}
                 </div>
               </button>
             );
           })}
         </div>
-
-        {/* Store link */}
-        {unlockedThemes.length < THEMES.length - 1 && (
-          <Link
-            href="/store"
-            className="block bg-[var(--color-surface)] rounded-2xl p-4 border border-amber-500/20 text-center hover:border-amber-500/30 transition-colors"
-          >
-            <div className="flex items-center justify-center gap-2">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M3 6L5 2H15L17 6" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M3 6V16C3 16.6 3.4 17 4 17H16C16.6 17 17 16.6 17 16V6" stroke="#F59E0B" strokeWidth="1.5"/>
-                <path d="M3 6H17" stroke="#F59E0B" strokeWidth="1.5"/>
-                <path d="M8 10H12" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-              <span className="text-sm font-semibold text-amber-400">스토어에서 테마 구매</span>
-            </div>
-          </Link>
-        )}
       </div>
     </div>
   );
