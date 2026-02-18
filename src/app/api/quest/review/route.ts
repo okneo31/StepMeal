@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const QUEST_ARRIVAL_BONUS_RATE = 0.20; // 20% of movement SC
-const QUEST_REVIEW_BONUS_RATE = 0.10; // additional 10% for review
+const QUEST_REVIEW_SC = 20; // Fixed SC reward for writing a review
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -39,22 +38,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "이미 리뷰가 작성되었습니다." }, { status: 409 });
     }
 
-    // Calculate bonuses based on the linked movement's totalSc
-    let movementSc = 0;
-    if (quest.movementId) {
-      const movement = await prisma.movement.findUnique({
-        where: { id: quest.movementId },
-        select: { totalSc: true },
-      });
-      movementSc = movement?.totalSc || 0;
-    }
-
-    const arrivalBonus = Math.floor(movementSc * QUEST_ARRIVAL_BONUS_RATE);
-    const reviewBonus = Math.floor(movementSc * QUEST_REVIEW_BONUS_RATE);
+    const arrivalBonus = quest.bonusSc || 0; // Already credited on arrival
+    const reviewBonus = QUEST_REVIEW_SC;
     const totalBonus = arrivalBonus + reviewBonus;
 
     const result = await prisma.$transaction(async (tx) => {
-      // Create review
+      // 1. Create review
       const review = await tx.questReview.create({
         data: {
           questId,
@@ -66,7 +55,7 @@ export async function POST(req: Request) {
         },
       });
 
-      // Update quest to completed
+      // 2. Update quest to completed
       await tx.quest.update({
         where: { id: questId },
         data: {
@@ -76,31 +65,44 @@ export async function POST(req: Request) {
         },
       });
 
-      // Credit bonus SC
-      if (totalBonus > 0) {
-        const balance = await tx.coinBalance.update({
-          where: { userId: session.user.id },
-          data: {
-            scBalance: { increment: totalBonus },
-            scLifetime: { increment: totalBonus },
-          },
-        });
+      // 3. Credit review SC bonus
+      const balance = await tx.coinBalance.update({
+        where: { userId: session.user.id },
+        data: {
+          scBalance: { increment: reviewBonus },
+          scLifetime: { increment: reviewBonus },
+        },
+      });
 
-        await tx.coinTransaction.create({
-          data: {
-            userId: session.user.id,
-            coinType: "SC",
-            amount: totalBonus,
-            balanceAfter: balance.scBalance,
-            sourceType: "MOVEMENT",
-            description: `퀘스트 완료 보너스: ${quest.destName} (+${totalBonus} SC)`,
-          },
-        });
+      await tx.coinTransaction.create({
+        data: {
+          userId: session.user.id,
+          coinType: "SC",
+          amount: reviewBonus,
+          balanceAfter: balance.scBalance,
+          sourceType: "MOVEMENT",
+          description: `퀘스트 리뷰 보너스: ${quest.destName} (+${reviewBonus} SC)`,
+        },
+      });
 
-        return { review, balance };
-      }
+      // 4. Update daily earning
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      await tx.dailyEarning.upsert({
+        where: {
+          userId_earnDate: { userId: session.user.id, earnDate: todayStart },
+        },
+        create: {
+          userId: session.user.id,
+          earnDate: todayStart,
+          scMovement: reviewBonus,
+        },
+        update: {
+          scMovement: { increment: reviewBonus },
+        },
+      });
 
-      return { review, balance: null };
+      return { review, balance };
     });
 
     return NextResponse.json({

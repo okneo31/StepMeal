@@ -100,7 +100,7 @@ export default function PhotoReviewModal({ questId, destName, onClose, onSubmitt
             건너뛰기
           </Button>
           <Button fullWidth onClick={handleSubmit} loading={submitting}>
-            리뷰 제출 (+10% SC)
+            리뷰 제출 (+20 SC)
           </Button>
         </div>
       </div>

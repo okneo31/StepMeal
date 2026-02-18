@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { haversineDistance } from "@/lib/geolocation";
 
 const ARRIVAL_RADIUS_M = 50; // 50m radius for arrival verification
+const QUEST_ARRIVAL_SC = 50; // Fixed SC reward for arriving at destination
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -37,21 +38,67 @@ export async function POST(req: Request) {
       });
     }
 
-    // Arrival verified
+    // Arrival verified - credit SC bonus in a transaction
     const now = new Date();
-    const updatedQuest = await prisma.quest.update({
-      where: { id: questId },
-      data: {
-        status: "ARRIVED",
-        arrivedAt: now,
-      },
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Update quest status
+      const updatedQuest = await tx.quest.update({
+        where: { id: questId },
+        data: {
+          status: "ARRIVED",
+          arrivedAt: now,
+          bonusSc: QUEST_ARRIVAL_SC,
+        },
+      });
+
+      // 2. Credit arrival SC
+      const balance = await tx.coinBalance.update({
+        where: { userId: session.user.id },
+        data: {
+          scBalance: { increment: QUEST_ARRIVAL_SC },
+          scLifetime: { increment: QUEST_ARRIVAL_SC },
+        },
+      });
+
+      // 3. Record transaction
+      await tx.coinTransaction.create({
+        data: {
+          userId: session.user.id,
+          coinType: "SC",
+          amount: QUEST_ARRIVAL_SC,
+          balanceAfter: balance.scBalance,
+          sourceType: "MOVEMENT",
+          description: `퀘스트 도착 보너스: ${quest.destName} (+${QUEST_ARRIVAL_SC} SC)`,
+        },
+      });
+
+      // 4. Update daily earning
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      await tx.dailyEarning.upsert({
+        where: {
+          userId_earnDate: { userId: session.user.id, earnDate: today },
+        },
+        create: {
+          userId: session.user.id,
+          earnDate: today,
+          scMovement: QUEST_ARRIVAL_SC,
+        },
+        update: {
+          scMovement: { increment: QUEST_ARRIVAL_SC },
+        },
+      });
+
+      return { updatedQuest, balance };
     });
 
     return NextResponse.json({
       arrived: true,
       distanceM: Math.round(distanceM),
-      questId: updatedQuest.id,
-      message: "목적지에 도착했습니다!",
+      questId: result.updatedQuest.id,
+      arrivalBonus: QUEST_ARRIVAL_SC,
+      newScBalance: result.balance.scBalance,
+      message: `목적지에 도착했습니다! +${QUEST_ARRIVAL_SC} SC`,
     });
   } catch (error) {
     console.error("Quest verify-arrival error:", error);

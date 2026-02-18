@@ -127,6 +127,7 @@ function QuestContent() {
       setDistanceM(data.distanceM);
 
       if (data.arrived) {
+        setBonus({ arrivalBonus: data.arrivalBonus || 0, reviewBonus: 0, totalBonus: data.arrivalBonus || 0 });
         setPhase("arrived");
         setShowReview(true);
       } else {
@@ -166,8 +167,20 @@ function QuestContent() {
     setPhase("completed");
   };
 
-  const handleSkipReview = () => {
+  const handleSkipReview = async () => {
     setShowReview(false);
+    // Complete quest in DB without review
+    if (questId) {
+      try {
+        await fetch("/api/quest/complete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ questId }),
+        });
+      } catch {
+        // ignore - complete UI anyway
+      }
+    }
     setPhase("completed");
   };
 
@@ -219,7 +232,7 @@ function QuestContent() {
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                       <path d="M7 1L9 4.5L13 5L10 8L11 12L7 10L3 12L4 8L1 5L5 4.5L7 1Z" stroke="currentColor" strokeWidth="1"/>
                     </svg>
-                    도착 시 +20% SC 보너스 · 리뷰 +10% SC 보너스
+                    도착 시 +50 SC 보너스 · 리뷰 작성 +20 SC 보너스
                   </div>
                 </div>
 
@@ -278,9 +291,9 @@ function QuestContent() {
           <>
             <ArrivalBanner arrived={true} distanceM={0} onVerify={() => {}} verifying={false} />
             <Button fullWidth size="lg" onClick={() => setShowReview(true)}>
-              리뷰 작성하기 (+10% SC)
+              리뷰 작성하기 (+20 SC)
             </Button>
-            <Button fullWidth variant="outline" onClick={() => setPhase("completed")}>
+            <Button fullWidth variant="outline" onClick={handleSkipReview}>
               건너뛰기
             </Button>
           </>

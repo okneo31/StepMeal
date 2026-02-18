@@ -47,22 +47,28 @@ function MultiplierRow({ label, icon, value, color }: { label: string; icon: Rea
 
 function ResultContent() {
   const params = useSearchParams();
+  const movementId = params.get("mid");
   const sc = parseInt(params.get("sc") || "0");
   const dist = parseInt(params.get("dist") || "0");
   const dur = parseInt(params.get("dur") || "0");
   const cal = parseInt(params.get("cal") || "0");
 
   const [result, setResult] = useState<MoveResult | null>(null);
+  const [loading, setLoading] = useState(!!movementId);
 
   useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem("stepmeal-move-result");
-      if (stored) {
-        setResult(JSON.parse(stored));
-        sessionStorage.removeItem("stepmeal-move-result");
-      }
-    } catch {}
-  }, []);
+    if (!movementId) return;
+
+    fetch(`/api/movement/detail?id=${movementId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.sc) {
+          setResult(data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [movementId]);
 
   const breakdown = result?.sc;
   const boosterMult = result?.boosterMult;
@@ -89,6 +95,12 @@ function ResultContent() {
         </div>
 
         {/* SC Breakdown */}
+        {loading && (
+          <div className="bg-[var(--color-surface)] rounded-2xl p-6 border border-[var(--color-border)] flex items-center justify-center">
+            <Spinner size="sm" />
+            <span className="text-sm text-[var(--color-text-muted)] ml-2">상세 내역 로딩 중...</span>
+          </div>
+        )}
         {breakdown && (
           <div className="bg-[var(--color-surface)] rounded-2xl p-4 border border-[var(--color-border)]">
             <h3 className="text-xs font-semibold text-[var(--color-text-muted)] mb-3 uppercase tracking-wider">SC 상세 내역</h3>
