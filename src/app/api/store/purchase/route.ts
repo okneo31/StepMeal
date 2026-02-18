@@ -90,7 +90,7 @@ export async function POST(req: Request) {
         },
       });
 
-      // 6. If item is SHIELD type, add shield to stride
+      // 6. If item is IN_APP type, process special effects
       if (item.category === "IN_APP" && item.metadata) {
         try {
           const meta = JSON.parse(item.metadata);
@@ -99,8 +99,31 @@ export async function POST(req: Request) {
               where: { userId: session.user.id },
               data: { shieldCount: { increment: quantity } },
             });
+          } else if (meta.type === "THEME" && meta.themeId) {
+            // Unlock theme - check for duplicate
+            const user = await tx.user.findUnique({
+              where: { id: session.user.id },
+              select: { unlockedThemes: true },
+            });
+            let unlocked: string[] = [];
+            try {
+              unlocked = JSON.parse(user?.unlockedThemes || "[]");
+            } catch {
+              unlocked = [];
+            }
+            if (unlocked.includes(meta.themeId)) {
+              throw new Error("이미 해금된 테마입니다.");
+            }
+            unlocked.push(meta.themeId);
+            await tx.user.update({
+              where: { id: session.user.id },
+              data: { unlockedThemes: JSON.stringify(unlocked) },
+            });
           }
         } catch (e) {
+          if (e instanceof Error && e.message === "이미 해금된 테마입니다.") {
+            throw e;
+          }
           console.warn("Store item metadata parse error:", item.id, e);
         }
       }

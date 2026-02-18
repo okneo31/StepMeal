@@ -33,6 +33,10 @@ model User {
   quests          Quest[]
   questReviews    QuestReview[]
   orders          Order[]
+
+  // Theme system
+  activeTheme     String   @default("default")
+  unlockedThemes  String   @default("[]")        // JSON array of theme IDs
 }
 
 model CoinBalance {

@@ -72,6 +72,139 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.4s ease, color 0.3s ease;
+}
+
+/* ======= Premium Themes ======= */
+
+/* Midnight Gold - 럭셔리 골드+블랙 */
+html[data-theme="midnight-gold"] {
+  --color-bg: #0D0B06;
+  --color-bg-secondary: #151008;
+  --color-surface: #1C1810;
+  --color-surface-elevated: #28221A;
+  --color-surface-hover: #332C20;
+  --color-primary: #FFD700;
+  --color-primary-dark: #D4A800;
+  --color-primary-light: #FFE44D;
+  --color-primary-glow: rgba(255, 215, 0, 0.15);
+  --color-secondary: #F59E0B;
+  --color-secondary-dark: #D97706;
+  --color-secondary-glow: rgba(245, 158, 11, 0.15);
+  --color-accent: #FFD700;
+  --color-accent-glow: rgba(255, 215, 0, 0.15);
+  --color-sc: #FFD700;
+  --color-text: #FFF8E1;
+  --color-text-secondary: #BFA96A;
+  --color-text-muted: #8B7A4A;
+  --color-border: #2A2210;
+  --color-border-light: #3D3420;
+  --color-success: #FFD700;
+  --color-info: #FFD700;
+}
+
+/* Rose Quartz - 우아한 핑크/로즈 */
+html[data-theme="rose-quartz"] {
+  --color-bg: #120B0F;
+  --color-bg-secondary: #1A1015;
+  --color-surface: #1E141A;
+  --color-surface-elevated: #2A1D24;
+  --color-surface-hover: #35262E;
+  --color-primary: #F472B6;
+  --color-primary-dark: #DB2777;
+  --color-primary-light: #F9A8D4;
+  --color-primary-glow: rgba(244, 114, 182, 0.15);
+  --color-secondary: #F9A8D4;
+  --color-secondary-dark: #F472B6;
+  --color-secondary-glow: rgba(249, 168, 212, 0.15);
+  --color-accent: #F472B6;
+  --color-accent-glow: rgba(244, 114, 182, 0.15);
+  --color-sc: #F472B6;
+  --color-text: #FDF2F8;
+  --color-text-secondary: #BF8BA0;
+  --color-text-muted: #8B6078;
+  --color-border: #2A1520;
+  --color-border-light: #3D2030;
+  --color-success: #F472B6;
+  --color-info: #F472B6;
+}
+
+/* Ocean Abyss - 심해 시안 블루 */
+html[data-theme="ocean-abyss"] {
+  --color-bg: #060D10;
+  --color-bg-secondary: #0A1418;
+  --color-surface: #0C1A1E;
+  --color-surface-elevated: #142428;
+  --color-surface-hover: #1C2E34;
+  --color-primary: #06B6D4;
+  --color-primary-dark: #0891B2;
+  --color-primary-light: #22D3EE;
+  --color-primary-glow: rgba(6, 182, 212, 0.15);
+  --color-secondary: #22D3EE;
+  --color-secondary-dark: #06B6D4;
+  --color-secondary-glow: rgba(34, 211, 238, 0.15);
+  --color-accent: #06B6D4;
+  --color-accent-glow: rgba(6, 182, 212, 0.15);
+  --color-sc: #06B6D4;
+  --color-text: #ECFEFF;
+  --color-text-secondary: #7ABCC8;
+  --color-text-muted: #4E8A96;
+  --color-border: #0E2028;
+  --color-border-light: #1A3040;
+  --color-success: #06B6D4;
+  --color-info: #06B6D4;
+}
+
+/* Aurora Borealis - 몽환적 바이올렛 */
+html[data-theme="aurora"] {
+  --color-bg: #0B0810;
+  --color-bg-secondary: #100D18;
+  --color-surface: #151020;
+  --color-surface-elevated: #1E182C;
+  --color-surface-hover: #282038;
+  --color-primary: #A78BFA;
+  --color-primary-dark: #7C3AED;
+  --color-primary-light: #C4B5FD;
+  --color-primary-glow: rgba(167, 139, 250, 0.15);
+  --color-secondary: #C4B5FD;
+  --color-secondary-dark: #A78BFA;
+  --color-secondary-glow: rgba(196, 181, 253, 0.15);
+  --color-accent: #A78BFA;
+  --color-accent-glow: rgba(167, 139, 250, 0.15);
+  --color-sc: #A78BFA;
+  --color-text: #F5F3FF;
+  --color-text-secondary: #9B8EC0;
+  --color-text-muted: #6D5E8A;
+  --color-border: #1C1530;
+  --color-border-light: #2A2040;
+  --color-success: #A78BFA;
+  --color-info: #A78BFA;
+}
+
+/* Crimson Obsidian - 강렬한 레드+블랙 */
+html[data-theme="crimson-obsidian"] {
+  --color-bg: #100808;
+  --color-bg-secondary: #180C0C;
+  --color-surface: #1A1010;
+  --color-surface-elevated: #241818;
+  --color-surface-hover: #2E2020;
+  --color-primary: #EF4444;
+  --color-primary-dark: #DC2626;
+  --color-primary-light: #F87171;
+  --color-primary-glow: rgba(239, 68, 68, 0.15);
+  --color-secondary: #F87171;
+  --color-secondary-dark: #EF4444;
+  --color-secondary-glow: rgba(248, 113, 113, 0.15);
+  --color-accent: #EF4444;
+  --color-accent-glow: rgba(239, 68, 68, 0.15);
+  --color-sc: #EF4444;
+  --color-text: #FEF2F2;
+  --color-text-secondary: #C08080;
+  --color-text-muted: #8A5050;
+  --color-border: #2A1515;
+  --color-border-light: #3D2020;
+  --color-success: #EF4444;
+  --color-info: #EF4444;
 }
 
 /* Safe area for mobile */
@@ -99,6 +232,10 @@ body {
 
 .glow-blue {
   box-shadow: 0 0 20px rgba(59, 130, 246, 0.2), inset 0 0 20px rgba(59, 130, 246, 0.05);
+}
+
+.glow-primary {
+  box-shadow: 0 0 20px var(--color-primary-glow), inset 0 0 20px rgba(255, 255, 255, 0.02);
 }
 
 /* Gradient text */

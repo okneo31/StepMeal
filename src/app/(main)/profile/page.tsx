@@ -116,6 +116,24 @@ export default function ProfilePage() {
           </Link>
         </div>
 
+        {/* Quick Actions Row 2 */}
+        <div className="grid grid-cols-3 gap-3">
+          <Link href="/profile/theme">
+            <div className="bg-[var(--color-surface)] rounded-2xl p-4 border border-[var(--color-primary)]/20 text-center hover:border-[var(--color-primary)]/30 transition-colors">
+              <div className="w-12 h-12 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center mx-auto mb-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="var(--color-primary)" strokeWidth="1.5" fill="var(--color-primary)" fillOpacity="0.1"/>
+                  <circle cx="12" cy="8" r="2" fill="var(--color-primary)" fillOpacity="0.6"/>
+                  <circle cx="8.5" cy="14" r="2" fill="var(--color-primary)" fillOpacity="0.4"/>
+                  <circle cx="15.5" cy="14" r="2" fill="var(--color-primary)" fillOpacity="0.8"/>
+                </svg>
+              </div>
+              <p className="text-sm font-semibold text-[var(--color-text)]">테마</p>
+              <p className="text-xs text-[var(--color-text-muted)]">색상 변경</p>
+            </div>
+          </Link>
+        </div>
+
         {/* NFT Gallery */}
         {nfts.length > 0 && (
           <div className="bg-[var(--color-surface)] rounded-2xl p-4 border border-[var(--color-border)]">
