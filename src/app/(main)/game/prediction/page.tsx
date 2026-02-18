@@ -28,6 +28,7 @@ interface HistoryItem {
 
 interface PredictionData {
   activePrediction: ActivePrediction | null;
+  alreadyPlayedToday: boolean;
   todayDistanceM: number;
   scBalance: number;
   targets: Target[];
@@ -207,6 +208,18 @@ export default function PredictionPage() {
                 </p>
               </div>
             )}
+          </div>
+        ) : data?.alreadyPlayedToday ? (
+          /* Already played today */
+          <div className="bg-[var(--color-surface)] rounded-2xl p-5 border border-[var(--color-border)] text-center">
+            <div className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center bg-[var(--color-surface-elevated)]">
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                <circle cx="14" cy="14" r="11" stroke="#64748B" strokeWidth="2"/>
+                <path d="M9 14L13 18L19 10" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <p className="text-sm font-semibold text-[var(--color-text)]">오늘의 예측을 이미 사용했습니다</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">내일 다시 도전하세요!</p>
           </div>
         ) : (
           /* New Prediction */

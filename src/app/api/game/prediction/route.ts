@@ -55,6 +55,17 @@ export async function GET() {
     where: { userId: session.user.id },
   });
 
+  // Check if already used today (any status)
+  const todayPlayed = !activePrediction
+    ? await prisma.gamePlay.findFirst({
+        where: {
+          userId: session.user.id,
+          gameType: "PREDICTION",
+          createdAt: { gte: today, lt: tomorrow },
+        },
+      })
+    : null;
+
   const history = await prisma.gamePlay.findMany({
     where: {
       userId: session.user.id,
@@ -66,6 +77,7 @@ export async function GET() {
   });
 
   return NextResponse.json({
+    alreadyPlayedToday: !!todayPlayed,
     activePrediction: activePrediction
       ? {
           id: activePrediction.id,
@@ -116,12 +128,11 @@ export async function POST(req: Request) {
         where: {
           userId: session.user.id,
           gameType: "PREDICTION",
-          status: "PENDING",
           createdAt: { gte: today, lt: tomorrow },
         },
       });
       if (existing) {
-        throw new Error("LIMIT:이미 오늘의 예측을 진행 중입니다.");
+        throw new Error("LIMIT:이미 오늘의 예측을 사용했습니다.");
       }
 
       const balance = await tx.coinBalance.findUnique({
