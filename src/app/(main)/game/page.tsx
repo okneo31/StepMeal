@@ -26,6 +26,26 @@ const games = [
     iconBg: "bg-purple-500/10",
   },
   {
+    href: "/game/ring",
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <circle cx="18" cy="18" r="14" stroke="#F59E0B" strokeWidth="2"/>
+        <circle cx="18" cy="18" r="9" stroke="#F59E0B" strokeWidth="1.5" strokeDasharray="4 2"/>
+        <circle cx="18" cy="18" r="4" fill="#F59E0B" fillOpacity="0.4"/>
+        <path d="M18 4V8" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round"/>
+        <path d="M28 10L25 12.5" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M8 10L11 12.5" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    ),
+    title: "1분링",
+    description: "1분마다 결과가 나오는 링 게임! 슬롯(2/3/5배) 또는 숫자(50배)에 베팅하세요.",
+    badge: "SC·MC 베팅",
+    borderColor: "border-amber-500/20",
+    glowClass: "glow-amber",
+    badgeColor: "bg-amber-500/15 text-amber-400 border border-amber-500/20",
+    iconBg: "bg-amber-500/10",
+  },
+  {
     href: "/game/quiz",
     icon: (
       <svg width="36" height="36" viewBox="0 0 36 36" fill="none">

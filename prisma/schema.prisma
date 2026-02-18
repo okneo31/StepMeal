@@ -33,6 +33,7 @@ model User {
   quests          Quest[]
   questReviews    QuestReview[]
   orders          Order[]
+  ringBets        RingBet[]
 
   // Theme system
   activeTheme     String   @default("default")
@@ -368,4 +369,23 @@ model Order {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   purchase Purchase @relation(fields: [purchaseId], references: [id])
   @@index([userId, createdAt])
+}
+
+model RingBet {
+  id          String   @id @default(cuid())
+  userId      String
+  round       Int      // round number from API (r field)
+  coinType    String   // SC or MC
+  betAmount   Int      // amount wagered
+  betType     String   // SLOT or NUMBER
+  betValue    Int      // slot (2,3,5) or exact number (1~54)
+  resultNum   Int?     // result number when settled
+  resultSlot  Int?     // result slot when settled
+  payout      Int      @default(0)
+  status      String   @default("PENDING") // PENDING, WON, LOST
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+  @@index([round, status])
 }
