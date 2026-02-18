@@ -173,7 +173,7 @@ export default function HomePage() {
 
         <DailySummaryCard
           distanceM={stats?.today?.distanceM || 0}
-          durationSec={0}
+          durationSec={stats?.today?.durationSec || 0}
           calories={stats?.today?.calories || 0}
         />
 

@@ -13,7 +13,9 @@ export async function GET() {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const thirtyDaysAgo = subDays(now, 30);
 
-  const [weeklyEarnings, monthlyMovements, todayEarning] = await Promise.all([
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const [weeklyEarnings, monthlyMovements, todayEarning, todayMovements] = await Promise.all([
     prisma.dailyEarning.findMany({
       where: {
         userId: session.user.id,
@@ -38,9 +40,20 @@ export async function GET() {
     prisma.dailyEarning.findFirst({
       where: {
         userId: session.user.id,
-        earnDate: {
-          gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-        },
+        earnDate: { gte: todayStart },
+      },
+    }),
+    prisma.movement.findMany({
+      where: {
+        userId: session.user.id,
+        status: "COMPLETED",
+        completedAt: { gte: todayStart },
+      },
+      select: {
+        distanceM: true,
+        durationSec: true,
+        calories: true,
+        totalSc: true,
       },
     }),
   ]);
@@ -70,11 +83,18 @@ export async function GET() {
     });
   }
 
+  // Today's stats from actual movements
+  const todayCalories = Math.round(todayMovements.reduce((sum, m) => sum + m.calories, 0));
+  const todayDuration = todayMovements.reduce((sum, m) => sum + m.durationSec, 0);
+  const todaySc = todayMovements.reduce((sum, m) => sum + m.totalSc, 0);
+
   return NextResponse.json({
     today: {
       distanceM: todayEarning?.distanceM || 0,
-      scEarned: (todayEarning?.scMovement || 0) + (todayEarning?.scSocial || 0) + (todayEarning?.scChallenge || 0) + (todayEarning?.scCheckin || 0),
-      calories: 0,
+      scMovement: todaySc,
+      scEarned: todaySc + (todayEarning?.scSocial || 0) + (todayEarning?.scChallenge || 0) + (todayEarning?.scCheckin || 0),
+      calories: todayCalories,
+      durationSec: todayDuration,
     },
     weekly: {
       distance: weeklyDistance,
