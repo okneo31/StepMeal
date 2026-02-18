@@ -25,5 +25,6 @@ export const config = {
     "/api/challenge/:path*",
     "/api/achievement/:path*",
     "/api/course/:path*",
+    "/api/home/:path*",
   ],
 };

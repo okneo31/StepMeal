@@ -30,32 +30,22 @@ export default function HomePage() {
       return;
     }
     if (status === "authenticated") {
-      const safeFetch = (url: string) =>
-        fetch(url)
-          .then(async (r) => {
-            if (!r.ok) {
-              const body = await r.json().catch(() => null);
-              console.warn(`[Home] ${url} failed:`, r.status, body?.detail || body?.error);
-              return null;
-            }
-            return r.json();
-          })
-          .catch((e) => { console.warn(`[Home] ${url} error:`, e); return null; });
-
-      Promise.all([
-        safeFetch("/api/coins/balance"),
-        safeFetch("/api/stride"),
-        safeFetch("/api/stats"),
-        safeFetch("/api/nft/my"),
-        safeFetch("/api/character"),
-      ]).then(([bal, str, sts, nft, char]) => {
-        if (bal) setBalance(bal);
-        if (str) setStride(str);
-        if (sts) setStats(sts);
-        if (nft) setNftBonus(nft.totalBonusPercent || 0);
-        if (char) setCharacter(char);
-        setLoading(false);
-      });
+      fetch("/api/home")
+        .then(async (r) => {
+          if (!r.ok) {
+            const body = await r.json().catch(() => null);
+            console.warn("[Home] API failed:", r.status, body?.detail || body?.error);
+            return;
+          }
+          const data = await r.json();
+          if (data.balance) setBalance(data.balance);
+          if (data.stride) setStride(data.stride);
+          if (data.stats) setStats(data.stats);
+          setNftBonus(data.nftBonus || 0);
+          if (data.character) setCharacter(data.character);
+        })
+        .catch((e) => console.warn("[Home] fetch error:", e))
+        .finally(() => setLoading(false));
     }
   }, [status, router]);
 
