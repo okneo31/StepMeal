@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import TransportSelector from "@/components/move/TransportSelector";
@@ -15,8 +15,21 @@ export default function MovePage() {
   const router = useRouter();
   const [transport, setTransport] = useState<TransportType>("WALK");
   const [loading, setLoading] = useState(false);
+  const [activeQuest, setActiveQuest] = useState<{ id: string; destName: string; status: string } | null>(null);
   const { getCurrentPosition } = useGeolocation();
   const { startTracking, isTracking } = useMovementStore();
+
+  // Check for active quest
+  useEffect(() => {
+    fetch("/api/quest/active")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.quest) {
+          setActiveQuest({ id: data.quest.id, destName: data.quest.destName, status: data.quest.status });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // If already tracking, redirect to tracking page
   if (isTracking) {
@@ -95,13 +108,41 @@ export default function MovePage() {
           </div>
         </div>
 
+        {/* Active Quest Banner */}
+        {activeQuest && (
+          <button
+            onClick={() => router.push("/move/quest")}
+            className="w-full bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M8 2C5.5 2 3 4.5 3 7C3 11 8 14 8 14C8 14 13 11 13 7C13 4.5 10.5 2 8 2Z" stroke="#22C55E" strokeWidth="1.3"/>
+                    <circle cx="8" cy="7" r="1.5" stroke="#22C55E" strokeWidth="1.3"/>
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-green-400">
+                    {activeQuest.status === "ARRIVED" ? "도착 완료!" : "진행 중인 퀘스트"}
+                  </p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{activeQuest.destName}</p>
+                </div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M6 4L10 8L6 12" stroke="#22C55E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+          </button>
+        )}
+
         <div className="flex gap-3">
           <Button fullWidth size="lg" variant="outline" onClick={() => router.push("/move/quest")}>
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="mr-1.5">
               <path d="M9 2C6 2 3 5 3 8C3 12 9 16 9 16C9 16 15 12 15 8C15 5 12 2 9 2Z" stroke="currentColor" strokeWidth="1.3"/>
               <circle cx="9" cy="8" r="2" stroke="currentColor" strokeWidth="1.3"/>
             </svg>
-            목적지 설정
+            {activeQuest ? "퀘스트 이어하기" : "목적지 설정"}
           </Button>
           <Button fullWidth size="lg" onClick={handleStart} loading={loading}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="mr-2">
