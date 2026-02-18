@@ -119,6 +119,7 @@ export default function TrackingPage() {
 
       if (res.ok) {
         reset();
+        sessionStorage.setItem("stepmeal-move-result", JSON.stringify(data));
         router.push(`/move/result?sc=${data.sc.totalSc}&dist=${data.totalDistance}&dur=${data.totalDuration}&cal=${data.calories}`);
       } else {
         alert(data.error || "이동 완료 처리 중 오류가 발생했습니다.");
