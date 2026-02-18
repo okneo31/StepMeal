@@ -58,15 +58,8 @@ export default function SignupPage() {
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <div className="w-20 h-20 rounded-full bg-[var(--color-primary)]/15 border-2 border-[var(--color-primary)]/30 flex items-center justify-center mx-auto mb-4">
-          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-            <circle cx="18" cy="10" r="4" fill="#22C55E" fillOpacity="0.6"/>
-            <path d="M18 15V24L14 32M18 24L22 32" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round"/>
-            <path d="M12 19L18 17L24 19" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round"/>
-          </svg>
-        </div>
-        <h1 className="text-3xl font-bold text-gradient-green">StepMeal</h1>
-        <p className="mt-2 text-[var(--color-text-muted)] text-sm">새 계정 만들기</p>
+        <img src="/logo.png" alt="StepMeal" className="w-32 h-32 mx-auto mb-2 object-contain" />
+        <p className="mt-1 text-[var(--color-text-muted)] text-sm">새 계정 만들기</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
