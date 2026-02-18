@@ -284,21 +284,22 @@ export default function ProfilePage() {
 
       {/* Weight Modal */}
       {showWeightModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowWeightModal(false)} />
-          <div className="relative w-full max-w-lg bg-[var(--color-surface)] rounded-t-2xl p-5 pb-8 border-t border-[var(--color-border)] safe-bottom">
-            <div className="w-10 h-1 bg-[var(--color-border-light)] rounded-full mx-auto mb-4" />
+          <div className="relative w-[90%] max-w-sm bg-[var(--color-surface)] rounded-2xl p-5 border border-[var(--color-border)]">
             <h3 className="text-lg font-bold text-[var(--color-text)] mb-1">체중 설정</h3>
             <p className="text-sm text-[var(--color-text-muted)] mb-4">정확한 칼로리 계산을 위해 체중을 입력하세요.</p>
             <div className="flex items-center gap-3 mb-5">
               <input
                 ref={weightInputRef}
                 type="number"
+                inputMode="decimal"
                 min={20}
                 max={300}
                 step={0.1}
                 value={weight}
                 onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveWeight(); }}
                 className="flex-1 bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-xl px-4 py-3 text-lg font-bold text-[var(--color-text)] text-center outline-none focus:border-[var(--color-primary)] transition-colors"
               />
               <span className="text-sm font-semibold text-[var(--color-text-secondary)]">kg</span>
@@ -313,9 +314,9 @@ export default function ProfilePage() {
               <button
                 onClick={saveWeight}
                 disabled={weightSaving || weight < 20 || weight > 300}
-                className="flex-1 py-3 rounded-xl bg-[var(--color-primary)] text-sm font-bold text-black hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="flex-[2] py-3 rounded-xl bg-[var(--color-primary)] text-sm font-bold text-black hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {weightSaving ? "저장 중..." : "저장"}
+                {weightSaving ? "저장 중..." : "확인"}
               </button>
             </div>
           </div>
