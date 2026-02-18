@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { ACHIEVEMENTS, getMonday } from "@/lib/missions";
+import { ACHIEVEMENTS, getMonday, generateDailyMissions } from "@/lib/missions";
 
 type EventType =
   | { type: "MOVEMENT_COMPLETE"; distanceM: number; isMulti: boolean; walkDistanceM: number }
@@ -16,6 +16,26 @@ export async function updateProgress(userId: string, event: EventType) {
 
   // ─── 1. Update Daily Missions ───
   try {
+    // Auto-generate missions if not yet created for today
+    const existingCount = await prisma.dailyMission.count({
+      where: { userId, missionDate: today },
+    });
+    if (existingCount === 0) {
+      const defs = generateDailyMissions(userId, today);
+      await prisma.dailyMission.createMany({
+        data: defs.map((d, i) => ({
+          userId,
+          missionDate: today,
+          slot: i + 1,
+          missionType: d.type,
+          description: d.description,
+          targetValue: d.targetValue,
+          rewardSc: d.rewardSc,
+          rewardMc: d.rewardMc,
+        })),
+      });
+    }
+
     const missions = await prisma.dailyMission.findMany({
       where: { userId, missionDate: today, status: "ACTIVE" },
     });
