@@ -30,20 +30,28 @@ export default function HomePage() {
       return;
     }
     if (status === "authenticated") {
+      const safeFetch = (url: string) =>
+        fetch(url)
+          .then((r) => {
+            if (!r.ok) console.warn(`[Home] ${url} failed:`, r.status);
+            return r.ok ? r.json() : null;
+          })
+          .catch((e) => { console.warn(`[Home] ${url} error:`, e); return null; });
+
       Promise.all([
-        fetch("/api/coins/balance").then((r) => r.json()),
-        fetch("/api/stride").then((r) => r.json()),
-        fetch("/api/stats").then((r) => r.json()),
-        fetch("/api/nft/my").then((r) => r.json()),
-        fetch("/api/character").then((r) => r.json()),
+        safeFetch("/api/coins/balance"),
+        safeFetch("/api/stride"),
+        safeFetch("/api/stats"),
+        safeFetch("/api/nft/my"),
+        safeFetch("/api/character"),
       ]).then(([bal, str, sts, nft, char]) => {
-        setBalance(bal);
-        setStride(str);
-        setStats(sts);
-        setNftBonus(nft.totalBonusPercent || 0);
-        setCharacter(char);
+        if (bal) setBalance(bal);
+        if (str) setStride(str);
+        if (sts) setStats(sts);
+        if (nft) setNftBonus(nft.totalBonusPercent || 0);
+        if (char) setCharacter(char);
         setLoading(false);
-      }).catch(() => setLoading(false));
+      });
     }
   }, [status, router]);
 
