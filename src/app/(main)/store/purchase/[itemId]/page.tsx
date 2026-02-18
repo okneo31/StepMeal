@@ -52,6 +52,11 @@ export default function PurchasePage() {
           scBalance: data.newScBalance,
           mcBalance: data.newMcBalance,
         });
+        // For HEALTH_FOOD, redirect to order page for shipping info
+        if (item.category === "HEALTH_FOOD") {
+          router.push(`/store/order/${item.id}?purchaseId=${data.purchaseId}`);
+          return;
+        }
         setResult({ success: true, message: "구매가 완료되었습니다!" });
       } else {
         setResult({ success: false, message: data.error || "구매에 실패했습니다." });

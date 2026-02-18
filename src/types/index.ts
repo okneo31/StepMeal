@@ -191,4 +191,67 @@ export interface QrScanResult {
   description?: string;
   newMcBalance?: number;
   error?: string;
+  booster?: {
+    activated: boolean;
+    multiplier: number;
+    type: string;
+    durationHours: number;
+  };
+}
+
+// === Booster Types ===
+export interface ActiveBoosterInfo {
+  active: boolean;
+  multiplier?: number;
+  boosterType?: string;
+  productName?: string;
+  expiresAt?: string;
+  remainingMin?: number;
+  remainingLabel?: string;
+}
+
+// === Quest Types ===
+export type QuestStatus = 'ACTIVE' | 'ARRIVED' | 'COMPLETED' | 'CANCELLED';
+
+export interface QuestDisplay {
+  id: string;
+  destName: string;
+  destLat: number;
+  destLng: number;
+  destAddress: string | null;
+  status: QuestStatus;
+  bonusSc: number;
+  arrivedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+export interface QuestReviewDisplay {
+  id: string;
+  questId: string;
+  photoUrl: string | null;
+  comment: string | null;
+  rating: number | null;
+  bonusSc: number;
+  createdAt: string;
+}
+
+// === Order Types ===
+export type OrderStatus = 'ORDERED' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED';
+
+export interface OrderDisplay {
+  id: string;
+  status: OrderStatus;
+  recipientName: string;
+  phone: string;
+  address: string;
+  addressDetail: string | null;
+  trackingNo: string | null;
+  memo: string | null;
+  createdAt: string;
+  itemName: string;
+  itemImage: string | null;
+  quantity: number;
+  price: number;
+  coinType: string;
 }

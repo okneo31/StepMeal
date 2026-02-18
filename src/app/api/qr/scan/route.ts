@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { QR_SCAN_DAILY_LIMIT } from "@/lib/constants";
+import { getBoosterMultiplier, BOOSTER_DURATION_HOURS } from "@/lib/booster-config";
 
 const PARTNER_API_URL = process.env.PARTNER_API_URL || "https://qr.stepmeal.top/api/verify.php";
 
@@ -138,16 +139,44 @@ export async function POST(req: Request) {
         }
       }
 
-      return balance;
+      // Activate SC booster (24h)
+      const { multiplier: boostMult, boosterType } = getBoosterMultiplier(partnerResult.qr_type);
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + BOOSTER_DURATION_HOURS * 60 * 60 * 1000);
+
+      // Upsert: overwrite existing booster
+      const existingBooster = await tx.activeBooster.findFirst({
+        where: { userId: session.user.id, expiresAt: { gt: now } },
+        orderBy: { activatedAt: "desc" },
+      });
+
+      if (existingBooster) {
+        await tx.activeBooster.update({
+          where: { id: existingBooster.id },
+          data: { boosterType, multiplier: boostMult, productName, activatedAt: now, expiresAt },
+        });
+      } else {
+        await tx.activeBooster.create({
+          data: { userId: session.user.id, boosterType, multiplier: boostMult, productName, activatedAt: now, expiresAt },
+        });
+      }
+
+      return { balance, boosterMult: boostMult, boosterType };
     });
 
     return NextResponse.json({
       success: true,
       mcReward,
       description: `${productName} (+${mcReward} MC)`,
-      newMcBalance: result.mcBalance,
+      newMcBalance: result.balance.mcBalance,
       conditionRestore,
       qrType: partnerResult.qr_type,
+      booster: {
+        activated: true,
+        multiplier: result.boosterMult,
+        type: result.boosterType,
+        durationHours: BOOSTER_DURATION_HOURS,
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "서버 오류";

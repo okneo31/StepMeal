@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import TransportSelector from "@/components/move/TransportSelector";
+import EquippedGearSummary from "@/components/move/EquippedGearSummary";
 import Button from "@/components/ui/Button";
 import { useMovementStore } from "@/stores/movementStore";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -58,6 +59,8 @@ export default function MovePage() {
     <div>
       <Header title="이동" />
       <div className="px-4 py-4 space-y-4">
+        <EquippedGearSummary />
+
         <div className="bg-[var(--color-surface)] rounded-2xl p-4 border border-[var(--color-border)]">
           <h3 className="text-xs font-semibold text-[var(--color-text-muted)] mb-3 uppercase tracking-wider">이동수단 선택</h3>
           <TransportSelector selected={transport} onSelect={setTransport} />
@@ -92,13 +95,22 @@ export default function MovePage() {
           </div>
         </div>
 
-        <Button fullWidth size="lg" onClick={handleStart} loading={loading}>
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="mr-2">
-            <path d="M10 2L18 10L10 18L2 10L10 2Z" fill="currentColor" fillOpacity="0.3"/>
-            <path d="M10 6V14M6 10H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-          이동 시작
-        </Button>
+        <div className="flex gap-3">
+          <Button fullWidth size="lg" variant="outline" onClick={() => router.push("/move/quest")}>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="mr-1.5">
+              <path d="M9 2C6 2 3 5 3 8C3 12 9 16 9 16C9 16 15 12 15 8C15 5 12 2 9 2Z" stroke="currentColor" strokeWidth="1.3"/>
+              <circle cx="9" cy="8" r="2" stroke="currentColor" strokeWidth="1.3"/>
+            </svg>
+            목적지 설정
+          </Button>
+          <Button fullWidth size="lg" onClick={handleStart} loading={loading}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="mr-2">
+              <path d="M10 2L18 10L10 18L2 10L10 2Z" fill="currentColor" fillOpacity="0.3"/>
+              <path d="M10 6V14M6 10H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            이동 시작
+          </Button>
+        </div>
       </div>
     </div>
   );

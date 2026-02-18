@@ -70,9 +70,21 @@ export async function POST(req: Request) {
       MAX_NFT_BONUS_PERCENT,
     );
 
-    // Calculate SC
+    // Check for active booster
     const now = new Date();
+    const activeBooster = await prisma.activeBooster.findFirst({
+      where: { userId: session.user.id, expiresAt: { gt: now } },
+      orderBy: { activatedAt: "desc" },
+    });
+    const boosterMult = activeBooster?.multiplier || 1.0;
+
+    // Calculate SC
     const scBreakdown = calculateMovementSc(segments, strideLevel, weather, now, nftBonusPercent);
+
+    // Apply booster multiplier
+    if (boosterMult > 1.0) {
+      scBreakdown.totalSc = Math.floor(scBreakdown.totalSc * boosterMult);
+    }
 
     // Calculate totals
     const totalDistance = segments.reduce((sum, s) => sum + s.distance, 0);
@@ -203,6 +215,7 @@ export async function POST(req: Request) {
       totalDuration,
       calories: totalCalories,
       sc: scBreakdown,
+      boosterMult: boosterMult > 1.0 ? boosterMult : undefined,
       newBalance: result.balance.scBalance,
     });
   } catch (error) {

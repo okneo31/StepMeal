@@ -7,6 +7,7 @@ import Link from "next/link";
 import DailySummaryCard from "@/components/home/DailySummaryCard";
 import CoinBalanceCard from "@/components/home/CoinBalanceCard";
 import StrideInfoCard from "@/components/home/StrideInfoCard";
+import ActiveBoosterBadge from "@/components/home/ActiveBoosterBadge";
 import Badge from "@/components/ui/Badge";
 import ProgressBar from "@/components/ui/ProgressBar";
 import Button from "@/components/ui/Button";
@@ -163,6 +164,8 @@ export default function HomePage() {
       </div>
 
       <div className="px-4 space-y-3">
+        <ActiveBoosterBadge />
+
         <CoinBalanceCard
           scBalance={balance.scBalance}
           mcBalance={balance.mcBalance}

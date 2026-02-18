@@ -57,12 +57,20 @@ export default function StorePage() {
       <Header
         title="스토어"
         rightAction={
-          <button
-            onClick={() => router.push("/store/history")}
-            className="text-sm text-[var(--color-primary)] font-medium"
-          >
-            구매내역
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => router.push("/store/orders")}
+              className="text-sm text-amber-400 font-medium"
+            >
+              주문내역
+            </button>
+            <button
+              onClick={() => router.push("/store/history")}
+              className="text-sm text-[var(--color-primary)] font-medium"
+            >
+              구매내역
+            </button>
+          </div>
         }
       />
       <div className="px-4 py-4">

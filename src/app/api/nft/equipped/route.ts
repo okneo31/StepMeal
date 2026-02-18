@@ -36,10 +36,22 @@ export async function GET() {
     const equippedTypes = new Set(equipped.map(n => n.template.nftType));
     const typeCount = equippedTypes.size;
 
+    // Calculate total bonus percent from all equipped NFTs
+    let totalBonusPercent = 0;
+    for (const nft of equipped) {
+      const baseBonus = nft.template.scBonusPercent;
+      const enhanceMultiplier = Math.pow(1.08, nft.enhanceLevel);
+      totalBonusPercent += Math.floor(baseBonus * enhanceMultiplier);
+    }
+    // Set bonus
+    if (typeCount >= 3) totalBonusPercent += 40;
+    else if (typeCount >= 2) totalBonusPercent += 20;
+
     return NextResponse.json({
       slots,
       equippedCount: equipped.length,
       uniqueTypeCount: typeCount,
+      totalBonusPercent,
     });
   } catch (error) {
     console.error("Equipped NFT error:", error);

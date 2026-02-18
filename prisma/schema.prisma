@@ -29,6 +29,10 @@ model User {
   roulettePlays   RoulettePlay[]
   quizAttempts    QuizAttempt[]
   nfts            UserNft[]
+  activeBoosters  ActiveBooster[]
+  quests          Quest[]
+  questReviews    QuestReview[]
+  orders          Order[]
 }
 
 model CoinBalance {
@@ -137,6 +141,7 @@ model Purchase {
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   storeItem StoreItem @relation(fields: [storeItemId], references: [id])
+  orders    Order[]
 
   @@index([userId, createdAt])
 }
@@ -293,4 +298,70 @@ model DailyEarning {
 
   @@unique([userId, earnDate])
   @@index([userId, earnDate])
+}
+
+model ActiveBooster {
+  id          String   @id @default(cuid())
+  userId      String
+  boosterType String   // QR_FOOD, QR_SUPPLEMENT, QR_DRINK
+  multiplier  Float    // 1.2 ~ 1.5
+  productName String?
+  activatedAt DateTime @default(now())
+  expiresAt   DateTime // activatedAt + 24h
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+}
+
+model Quest {
+  id            String    @id @default(cuid())
+  userId        String
+  movementId    String?
+  destName      String
+  destLat       Float
+  destLng       Float
+  destAddress   String?
+  status        String    @default("ACTIVE") // ACTIVE, ARRIVED, COMPLETED, CANCELLED
+  bonusSc       Int       @default(0)
+  arrivedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review  QuestReview?
+  @@index([userId, status])
+}
+
+model QuestReview {
+  id        String   @id @default(cuid())
+  questId   String   @unique
+  userId    String
+  photoUrl  String?
+  comment   String?
+  rating    Int?     // 1~5
+  bonusSc   Int      @default(0)
+  createdAt DateTime @default(now())
+
+  quest Quest @relation(fields: [questId], references: [id])
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id            String   @id @default(cuid())
+  userId        String
+  purchaseId    String
+  recipientName String
+  phone         String
+  zipCode       String
+  address       String
+  addressDetail String?
+  status        String   @default("ORDERED") // ORDERED, CONFIRMED, SHIPPED, DELIVERED
+  trackingNo    String?
+  memo          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchase Purchase @relation(fields: [purchaseId], references: [id])
+  @@index([userId, createdAt])
 }
