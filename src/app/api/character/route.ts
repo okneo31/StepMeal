@@ -24,9 +24,9 @@ export async function GET() {
     }
 
     return NextResponse.json(character);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Character error:", error);
-    return NextResponse.json({ error: "서버 오류" }, { status: 500 });
+    return NextResponse.json({ error: "서버 오류", detail: error?.message || String(error) }, { status: 500 });
   }
 }
 

@@ -53,8 +53,8 @@ export async function GET() {
       equippedCount: equipped.length,
       uniqueTypeCount: equippedTypes.size,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("My NFT error:", error);
-    return NextResponse.json({ error: "서버 오류" }, { status: 500 });
+    return NextResponse.json({ error: "서버 오류", detail: error?.message || String(error) }, { status: 500 });
   }
 }

@@ -9,6 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  try {
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const thirtyDaysAgo = subDays(now, 30);
@@ -109,4 +110,8 @@ export async function GET() {
     },
     dailyChart,
   });
+  } catch (error: any) {
+    console.error("Stats error:", error);
+    return NextResponse.json({ error: "서버 오류", detail: error?.message || String(error) }, { status: 500 });
+  }
 }

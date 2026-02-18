@@ -32,9 +32,13 @@ export default function HomePage() {
     if (status === "authenticated") {
       const safeFetch = (url: string) =>
         fetch(url)
-          .then((r) => {
-            if (!r.ok) console.warn(`[Home] ${url} failed:`, r.status);
-            return r.ok ? r.json() : null;
+          .then(async (r) => {
+            if (!r.ok) {
+              const body = await r.json().catch(() => null);
+              console.warn(`[Home] ${url} failed:`, r.status, body?.detail || body?.error);
+              return null;
+            }
+            return r.json();
           })
           .catch((e) => { console.warn(`[Home] ${url} error:`, e); return null; });
 
