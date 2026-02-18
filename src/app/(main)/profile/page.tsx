@@ -215,6 +215,20 @@ export default function ProfilePage() {
         {/* Actions */}
         <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
           <button
+            onClick={() => router.push("/profile/achievements")}
+            className="w-full text-left py-3.5 px-4 border-b border-[var(--color-border)] text-sm text-[var(--color-text-secondary)] flex justify-between items-center hover:bg-[var(--color-surface-hover)] transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M8 1L10 6H15L11 9L12.5 14L8 11L3.5 14L5 9L1 6H6L8 1Z" stroke="#A855F7" strokeWidth="1.2" fill="#A855F7" fillOpacity="0.15"/>
+              </svg>
+              업적 / 뱃지
+            </span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M6 4L10 8L6 12" stroke="#64748B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <button
             onClick={() => router.push("/profile/notifications")}
             className="w-full text-left py-3.5 px-4 border-b border-[var(--color-border)] text-sm text-[var(--color-text-secondary)] flex justify-between items-center hover:bg-[var(--color-surface-hover)] transition-colors"
           >

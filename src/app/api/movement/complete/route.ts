@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { calculateMovementSc, getMultiModalBonus, getMultiClassCount, getTimeSlot, estimateCalories } from "@/lib/sc-calculator";
 import { calculateStrideUpdate } from "@/lib/stride-engine";
 import { TRANSPORT_CONFIG, STRIDE_TABLE, MIN_DAILY_DISTANCE } from "@/lib/constants";
+import { MILESTONES, DURATION_MILESTONES } from "@/lib/missions";
+import { updateProgress } from "@/lib/progress";
 import type { MovementSegment, WeatherType, TransportType } from "@/types";
 
 const MAX_NFT_BONUS_PERCENT = 100;
@@ -209,6 +211,54 @@ export async function POST(req: Request) {
       return { completedMovement, balance, scBreakdown };
     });
 
+    // ─── Milestone Bonuses ───
+    let milestoneBonusSc = 0;
+    const earnedMilestones: string[] = [];
+
+    for (const ms of MILESTONES) {
+      if (totalDistance >= ms.distanceM) {
+        milestoneBonusSc += ms.bonusSc;
+        earnedMilestones.push(ms.label);
+      }
+    }
+    for (const ms of DURATION_MILESTONES) {
+      if (totalDuration >= ms.durationSec) {
+        milestoneBonusSc += ms.bonusSc;
+        earnedMilestones.push(ms.label);
+      }
+    }
+
+    let finalBalance = result.balance.scBalance;
+    if (milestoneBonusSc > 0) {
+      const bal = await prisma.coinBalance.update({
+        where: { userId: session.user.id },
+        data: { scBalance: { increment: milestoneBonusSc }, scLifetime: { increment: milestoneBonusSc } },
+      });
+      finalBalance = bal.scBalance;
+      await prisma.coinTransaction.create({
+        data: {
+          userId: session.user.id,
+          coinType: "SC",
+          amount: milestoneBonusSc,
+          balanceAfter: finalBalance,
+          sourceType: "CHALLENGE",
+          description: `마일스톤 보너스: ${earnedMilestones.join(", ")}`,
+        },
+      });
+    }
+
+    // ─── Update Progress (missions, achievements, weekly) ───
+    const walkDistanceM = segments
+      .filter((s) => s.transport === "WALK" || s.transport === "RUN")
+      .reduce((sum, s) => sum + s.distance, 0);
+
+    updateProgress(session.user.id, {
+      type: "MOVEMENT_COMPLETE",
+      distanceM: totalDistance,
+      isMulti,
+      walkDistanceM,
+    }).catch((e) => console.error("Progress update error:", e));
+
     return NextResponse.json({
       movementId,
       totalDistance,
@@ -216,7 +266,8 @@ export async function POST(req: Request) {
       calories: totalCalories,
       sc: scBreakdown,
       boosterMult: boosterMult > 1.0 ? boosterMult : undefined,
-      newBalance: result.balance.scBalance,
+      newBalance: finalBalance,
+      milestones: earnedMilestones.length > 0 ? { bonusSc: milestoneBonusSc, labels: earnedMilestones } : undefined,
     });
   } catch (error) {
     console.error("Movement complete error:", error);

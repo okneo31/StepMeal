@@ -21,5 +21,9 @@ export const config = {
     "/api/nft/:path*",
     "/admin/:path*",
     "/api/admin/:path*",
+    "/api/mission/:path*",
+    "/api/challenge/:path*",
+    "/api/achievement/:path*",
+    "/api/course/:path*",
   ],
 };

@@ -209,6 +209,40 @@ export default function HomePage() {
           </Link>
         )}
 
+        {/* Quick Links */}
+        <div className="grid grid-cols-2 gap-2">
+          <Link href="/mission">
+            <div className="bg-[var(--color-surface)] rounded-2xl p-3 border border-amber-500/20 hover:border-amber-500/30 transition-colors">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path d="M3 9L7 13L15 5" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[var(--color-text)]">미션</p>
+                  <p className="text-[10px] text-[var(--color-text-muted)]">데일리 & 챌린지</p>
+                </div>
+              </div>
+            </div>
+          </Link>
+          <Link href="/profile/achievements">
+            <div className="bg-[var(--color-surface)] rounded-2xl p-3 border border-purple-500/20 hover:border-purple-500/30 transition-colors">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path d="M9 2L11 7H16L12 10.5L13.5 16L9 12.5L4.5 16L6 10.5L2 7H7L9 2Z" stroke="#A855F7" strokeWidth="1.5" fill="#A855F7" fillOpacity="0.15"/>
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[var(--color-text)]">업적</p>
+                  <p className="text-[10px] text-[var(--color-text-muted)]">뱃지 수집</p>
+                </div>
+              </div>
+            </div>
+          </Link>
+        </div>
+
         <Link href="/move" className="block pb-4">
           <Button fullWidth size="lg" className="mt-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="mr-2">

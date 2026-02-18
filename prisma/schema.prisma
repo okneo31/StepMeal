@@ -35,6 +35,10 @@ model User {
   orders          Order[]
   ringBets        RingBet[]
   gamePlays       GamePlay[]
+  dailyMissions   DailyMission[]
+  weeklyChallenges WeeklyChallenge[]
+  courseAttempts   CourseAttempt[]
+  achievements    UserAchievement[]
 
   // Theme system
   activeTheme     String   @default("default")
@@ -407,4 +411,87 @@ model GamePlay {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, gameType, createdAt])
+}
+
+// ─── Daily Mission System ───
+model DailyMission {
+  id           String   @id @default(cuid())
+  userId       String
+  missionDate  DateTime
+  slot         Int      // 1, 2, 3
+  missionType  String   // WALK_DIST, TOTAL_DIST, QUEST_COMPLETE, MOVE_COUNT, GAME_PLAY
+  description  String
+  targetValue  Int
+  currentValue Int      @default(0)
+  rewardSc     Int      @default(0)
+  rewardMc     Int      @default(0)
+  status       String   @default("ACTIVE") // ACTIVE, COMPLETED, CLAIMED
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, missionDate, slot])
+  @@index([userId, missionDate])
+}
+
+// ─── Weekly Challenge ───
+model WeeklyChallenge {
+  id              String   @id @default(cuid())
+  userId          String
+  weekStart       DateTime
+  totalDistanceM  Int      @default(0)
+  moveCount       Int      @default(0)
+  bronzeClaimed   Boolean  @default(false)
+  silverClaimed   Boolean  @default(false)
+  goldClaimed     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, weekStart])
+}
+
+// ─── Multi-Point Course Quest ───
+model CourseQuest {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  category        String   @default("TOUR") // HEALTH, FOOD, TOUR
+  checkpoints     String   // JSON: [{name, lat, lng, address, rewardSc, radiusM}]
+  completionBonus Int      @default(100)
+  estimatedKm     Float    @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  attempts CourseAttempt[]
+}
+
+model CourseAttempt {
+  id                String    @id @default(cuid())
+  userId            String
+  courseId           String
+  currentCheckpoint Int       @default(0)
+  completedChecks   String    @default("[]") // JSON: completed checkpoint indices
+  totalEarned       Int       @default(0)
+  status            String    @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course CourseQuest @relation(fields: [courseId], references: [id])
+  @@index([userId, status])
+}
+
+// ─── Achievement / Badge System ───
+model UserAchievement {
+  id              String    @id @default(cuid())
+  userId          String
+  achievementCode String
+  progress        Int       @default(0)
+  completed       Boolean   @default(false)
+  completedAt     DateTime?
+  claimed         Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, achievementCode])
+  @@index([userId, completed])
 }

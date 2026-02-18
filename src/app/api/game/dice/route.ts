@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { updateProgress } from "@/lib/progress";
 
 const DAILY_LIMIT = 10;
 const BET_AMOUNTS = [10, 30, 50, 100];
@@ -174,6 +175,7 @@ export async function POST(req: Request) {
       };
     });
 
+    updateProgress(session.user.id, { type: "GAME_PLAY" }).catch(() => {});
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "서버 오류";

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { updateProgress } from "@/lib/progress";
 
 const QUEST_REVIEW_SC = 20; // Fixed SC reward for writing a review
 
@@ -104,6 +105,8 @@ export async function POST(req: Request) {
 
       return { review, balance };
     });
+
+    updateProgress(session.user.id, { type: "QUEST_COMPLETE" }).catch(() => {});
 
     return NextResponse.json({
       reviewId: result.review.id,

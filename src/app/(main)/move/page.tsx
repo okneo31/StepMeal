@@ -152,6 +152,30 @@ export default function MovePage() {
             이동 시작
           </Button>
         </div>
+
+        {/* Course Quest Link */}
+        <button
+          onClick={() => router.push("/move/course")}
+          className="w-full bg-[var(--color-surface)] rounded-2xl p-3.5 border border-blue-500/20 flex items-center justify-between hover:border-blue-500/30 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="5" cy="5" r="2.5" stroke="#3B82F6" strokeWidth="1.5"/>
+                <circle cx="15" cy="8" r="2.5" stroke="#3B82F6" strokeWidth="1.5"/>
+                <circle cx="10" cy="16" r="2.5" stroke="#3B82F6" strokeWidth="1.5"/>
+                <path d="M7 6L13 7.5M13.5 10L11 14" stroke="#3B82F6" strokeWidth="1" strokeDasharray="2 2"/>
+              </svg>
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-[var(--color-text)]">코스 퀘스트</p>
+              <p className="text-xs text-[var(--color-text-muted)]">여러 장소를 순회하고 보상 받기</p>
+            </div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M6 4L10 8L6 12" stroke="#64748B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
       </div>
     </div>
   );

@@ -52,6 +52,13 @@ function ResultContent() {
   const dist = parseInt(params.get("dist") || "0");
   const dur = parseInt(params.get("dur") || "0");
   const cal = parseInt(params.get("cal") || "0");
+  const milestones = (() => {
+    try {
+      const raw = params.get("ms");
+      if (!raw) return null;
+      return JSON.parse(decodeURIComponent(raw)) as { bonusSc: number; labels: string[] };
+    } catch { return null; }
+  })();
 
   const [result, setResult] = useState<MoveResult | null>(null);
   const [loading, setLoading] = useState(!!movementId);
@@ -165,6 +172,32 @@ function ResultContent() {
             <div className="flex items-center justify-between pt-3 mt-1 border-t border-[var(--color-border)]">
               <span className="text-sm font-bold text-[var(--color-text)]">최종 획득</span>
               <span className="text-lg font-bold text-[var(--color-primary)] num">+{breakdown.totalSc} SC</span>
+            </div>
+          </div>
+        )}
+
+        {/* Milestone Bonuses */}
+        {milestones && milestones.bonusSc > 0 && (
+          <div className="bg-amber-500/5 rounded-2xl p-4 border border-amber-500/20">
+            <h3 className="text-xs font-semibold text-amber-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1L9 5H13L10 8L11 12L7 9.5L3 12L4 8L1 5H5L7 1Z" fill="#F59E0B" fillOpacity="0.3" stroke="#F59E0B" strokeWidth="1"/>
+              </svg>
+              마일스톤 달성!
+            </h3>
+            <div className="space-y-1.5">
+              {milestones.labels.map((label, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M3 7L6 10L11 4" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span className="text-[var(--color-text-secondary)]">{label}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 pt-2 border-t border-amber-500/15 flex items-center justify-between">
+              <span className="text-sm text-amber-400 font-semibold">마일스톤 보너스</span>
+              <span className="text-lg font-bold text-amber-400 num">+{milestones.bonusSc} SC</span>
             </div>
           </div>
         )}

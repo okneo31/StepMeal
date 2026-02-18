@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { updateProgress } from "@/lib/progress";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
       },
     });
 
+    updateProgress(session.user.id, { type: "QUEST_COMPLETE" }).catch(() => {});
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Quest complete error:", error);

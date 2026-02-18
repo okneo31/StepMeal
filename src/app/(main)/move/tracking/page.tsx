@@ -119,7 +119,8 @@ export default function TrackingPage() {
 
       if (res.ok) {
         reset();
-        router.push(`/move/result?mid=${movementId}&sc=${data.sc.totalSc}&dist=${data.totalDistance}&dur=${data.totalDuration}&cal=${data.calories}`);
+        const msParam = data.milestones ? `&ms=${encodeURIComponent(JSON.stringify(data.milestones))}` : "";
+        router.push(`/move/result?mid=${movementId}&sc=${data.sc.totalSc}&dist=${data.totalDistance}&dur=${data.totalDuration}&cal=${data.calories}${msParam}`);
       } else {
         alert(data.error || "이동 완료 처리 중 오류가 발생했습니다.");
       }
