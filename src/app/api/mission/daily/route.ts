@@ -195,7 +195,7 @@ export async function PATCH(req: Request) {
       }
 
       return { scBalance: scBal, mcBalance: mcBal };
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json({ ...result, rewardSc: mission.rewardSc, rewardMc: mission.rewardMc });
   } catch (error) {

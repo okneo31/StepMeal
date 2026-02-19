@@ -69,7 +69,7 @@ export async function POST(req: Request) {
       });
 
       return equipped;
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json({ success: true, nft: result });
   } catch (error) {

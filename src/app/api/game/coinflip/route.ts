@@ -51,28 +51,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "앞면 또는 뒷면을 선택하세요." }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
+    // Pre-check outside transaction
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
 
-      const todayPlays = await tx.gamePlay.count({
+    const [preBalance, prePlays] = await Promise.all([
+      prisma.coinBalance.findUnique({ where: { userId: session.user.id } }),
+      prisma.gamePlay.count({
         where: {
           userId: session.user.id,
           gameType: "COINFLIP",
           createdAt: { gte: today, lt: tomorrow },
         },
-      });
+      }),
+    ]);
 
-      if (todayPlays >= DAILY_LIMIT) {
-        throw new Error("LIMIT:오늘의 코인 플립 횟수를 모두 사용했습니다.");
-      }
+    if (prePlays >= DAILY_LIMIT) {
+      return NextResponse.json({ error: "오늘의 코인 플립 횟수를 모두 사용했습니다." }, { status: 400 });
+    }
+    if (!preBalance || preBalance.mcBalance < betAmount) {
+      return NextResponse.json({ error: "MC가 부족합니다." }, { status: 400 });
+    }
 
-      const balance = await tx.coinBalance.findUnique({
-        where: { userId: session.user.id },
-      });
+    const coinResult = Math.random() < 0.5 ? "heads" : "tails";
+    const isWin = coinResult === pick;
+    const payout = isWin ? betAmount * 2 : 0;
 
+    const result = await prisma.$transaction(async (tx) => {
+      const balance = await tx.coinBalance.findUnique({ where: { userId: session.user.id } });
       if (!balance || balance.mcBalance < betAmount) {
         throw new Error("MC가 부족합니다.");
       }
@@ -92,10 +100,6 @@ export async function POST(req: Request) {
           description: "코인 플립 베팅",
         },
       });
-
-      const coinResult = Math.random() < 0.5 ? "heads" : "tails";
-      const isWin = coinResult === pick;
-      const payout = isWin ? betAmount * 2 : 0;
 
       if (isWin) {
         updatedBalance = await tx.coinBalance.update({
@@ -138,9 +142,9 @@ export async function POST(req: Request) {
         isWin,
         payout,
         mcBalance: updatedBalance.mcBalance,
-        remainingPlays: DAILY_LIMIT - todayPlays - 1,
+        remainingPlays: DAILY_LIMIT - prePlays - 1,
       };
-    });
+    }, { timeout: 15000 });
 
     updateProgress(session.user.id, { type: "GAME_PLAY" }).catch(() => {});
     return NextResponse.json(result);

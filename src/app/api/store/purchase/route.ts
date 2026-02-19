@@ -131,7 +131,7 @@ export async function POST(req: Request) {
       }
 
       return { purchase, balance: updatedBalance };
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json({
       purchaseId: result.purchase.id,

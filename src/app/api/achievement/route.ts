@@ -77,7 +77,7 @@ export async function POST(req: Request) {
       });
 
       return { scBalance: balance.scBalance, rewardSc: achDef.rewardSc };
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json(result);
   } catch (error) {

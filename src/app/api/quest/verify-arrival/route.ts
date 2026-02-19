@@ -90,7 +90,7 @@ export async function POST(req: Request) {
       });
 
       return { updatedQuest, balance };
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json({
       arrived: true,

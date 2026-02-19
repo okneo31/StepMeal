@@ -76,6 +76,7 @@ export async function POST(req: Request) {
 
     // Deduct balance and create bet in a transaction
     const result = await prisma.$transaction(async (tx) => {
+      // Re-check balance inside transaction
       // Deduct bet amount
       const updateData = coinType === "SC"
         ? { scBalance: { decrement: betAmount } }
@@ -111,7 +112,7 @@ export async function POST(req: Request) {
       });
 
       return { bet, updatedBalance };
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json({
       betId: result.bet.id,

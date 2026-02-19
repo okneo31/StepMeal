@@ -104,7 +104,7 @@ export async function POST(req: Request) {
       });
 
       return { review, balance };
-    });
+    }, { timeout: 15000 });
 
     updateProgress(session.user.id, { type: "QUEST_COMPLETE" }).catch(() => {});
 

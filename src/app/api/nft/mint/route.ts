@@ -75,7 +75,7 @@ export async function POST(req: Request) {
       });
 
       return { nft, template: updatedTemplate, newMcBalance: updatedBalance.mcBalance };
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json({
       success: true,

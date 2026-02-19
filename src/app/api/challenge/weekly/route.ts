@@ -105,7 +105,7 @@ export async function POST(req: Request) {
       }
 
       return { scBalance: balance!.scBalance, mcBalance: balance!.mcBalance };
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json({ ...result, rewardSc: tierDef.rewardSc, rewardMc: tierDef.rewardMc });
   } catch (error) {

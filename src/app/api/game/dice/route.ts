@@ -74,32 +74,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "1~6 사이의 숫자를 선택하세요." }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
+    // Pre-check outside transaction to reduce transaction duration
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
 
-      const todayPlays = await tx.gamePlay.count({
+    const [preBalance, prePlays] = await Promise.all([
+      prisma.coinBalance.findUnique({ where: { userId: session.user.id } }),
+      prisma.gamePlay.count({
         where: {
           userId: session.user.id,
           gameType: "DICE",
           createdAt: { gte: today, lt: tomorrow },
         },
-      });
+      }),
+    ]);
 
-      if (todayPlays >= DAILY_LIMIT) {
-        throw new Error("LIMIT:오늘의 주사위 횟수를 모두 사용했습니다.");
-      }
+    if (prePlays >= DAILY_LIMIT) {
+      return NextResponse.json({ error: "오늘의 주사위 횟수를 모두 사용했습니다." }, { status: 400 });
+    }
+    const currentBalance = coinType === "SC" ? preBalance?.scBalance || 0 : preBalance?.mcBalance || 0;
+    if (currentBalance < betAmount) {
+      return NextResponse.json({ error: `${coinType}가 부족합니다.` }, { status: 400 });
+    }
 
+    // Roll dice before transaction
+    const roll = Math.floor(Math.random() * 6) + 1;
+    const isWin = checkWin(roll, betType, betValue);
+    const multiplier = getDiceMultiplier(betType);
+    const payout = isWin ? betAmount * multiplier : 0;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Re-check balance inside transaction for safety
       const balance = await tx.coinBalance.findUnique({
         where: { userId: session.user.id },
       });
-      const currentBalance = coinType === "SC" ? balance?.scBalance || 0 : balance?.mcBalance || 0;
-      if (currentBalance < betAmount) {
+      const bal = coinType === "SC" ? balance?.scBalance || 0 : balance?.mcBalance || 0;
+      if (bal < betAmount) {
         throw new Error(`${coinType}가 부족합니다.`);
       }
 
+      // Deduct bet
       const deductData = coinType === "SC"
         ? { scBalance: { decrement: betAmount } }
         : { mcBalance: { decrement: betAmount } };
@@ -120,11 +136,7 @@ export async function POST(req: Request) {
         },
       });
 
-      const roll = Math.floor(Math.random() * 6) + 1;
-      const isWin = checkWin(roll, betType, betValue);
-      const multiplier = getDiceMultiplier(betType);
-      const payout = isWin ? betAmount * multiplier : 0;
-
+      // Credit winnings
       if (isWin) {
         const creditData = coinType === "SC"
           ? { scBalance: { increment: payout }, scLifetime: { increment: payout } }
@@ -146,6 +158,7 @@ export async function POST(req: Request) {
         });
       }
 
+      // Record game play
       const betChoiceStr = betType === "exact" ? `exact:${betValue}` : betType;
       await tx.gamePlay.create({
         data: {
@@ -171,9 +184,9 @@ export async function POST(req: Request) {
         payout,
         scBalance: updatedBalance.scBalance,
         mcBalance: updatedBalance.mcBalance,
-        remainingPlays: DAILY_LIMIT - todayPlays - 1,
+        remainingPlays: DAILY_LIMIT - prePlays - 1,
       };
-    });
+    }, { timeout: 15000 });
 
     updateProgress(session.user.id, { type: "GAME_PLAY" }).catch(() => {});
     return NextResponse.json(result);

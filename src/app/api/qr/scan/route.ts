@@ -162,7 +162,7 @@ export async function POST(req: Request) {
       }
 
       return { balance, boosterMult: boostMult, boosterType };
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json({
       success: true,
@@ -266,7 +266,7 @@ async function localScan(code: string, userId: string) {
     });
 
     return balance;
-  });
+  }, { timeout: 15000 });
 
   return NextResponse.json({
     success: true,

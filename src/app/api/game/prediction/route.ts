@@ -118,26 +118,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "잘못된 베팅 금액입니다." }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
+    // Pre-check outside transaction
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
 
-      const existing = await tx.gamePlay.findFirst({
+    const [existing, preBalance] = await Promise.all([
+      prisma.gamePlay.findFirst({
         where: {
           userId: session.user.id,
           gameType: "PREDICTION",
           createdAt: { gte: today, lt: tomorrow },
         },
-      });
-      if (existing) {
-        throw new Error("LIMIT:이미 오늘의 예측을 사용했습니다.");
-      }
+      }),
+      prisma.coinBalance.findUnique({ where: { userId: session.user.id } }),
+    ]);
 
-      const balance = await tx.coinBalance.findUnique({
-        where: { userId: session.user.id },
-      });
+    if (existing) {
+      return NextResponse.json({ error: "이미 오늘의 예측을 사용했습니다." }, { status: 400 });
+    }
+    if (!preBalance || preBalance.scBalance < betAmount) {
+      return NextResponse.json({ error: "SC가 부족합니다." }, { status: 400 });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const balance = await tx.coinBalance.findUnique({ where: { userId: session.user.id } });
       if (!balance || balance.scBalance < betAmount) {
         throw new Error("SC가 부족합니다.");
       }
@@ -179,7 +185,7 @@ export async function POST(req: Request) {
         },
         scBalance: updatedBalance.scBalance,
       };
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json(result);
   } catch (error) {
@@ -201,45 +207,45 @@ export async function PATCH(req: Request) {
   try {
     const { predictionId } = await req.json();
 
+    // Pre-check outside transaction
+    const prediction = await prisma.gamePlay.findFirst({
+      where: {
+        id: predictionId,
+        userId: session.user.id,
+        gameType: "PREDICTION",
+        status: "PENDING",
+      },
+    });
+
+    if (!prediction) {
+      return NextResponse.json({ error: "활성 예측이 없습니다." }, { status: 400 });
+    }
+
+    const targetKm = parseFloat(prediction.betChoice);
+    const pToday = new Date();
+    pToday.setHours(0, 0, 0, 0);
+    const pTomorrow = new Date(pToday);
+    pTomorrow.setDate(pToday.getDate() + 1);
+
+    const movements = await prisma.movement.findMany({
+      where: {
+        userId: session.user.id,
+        status: "COMPLETED",
+        completedAt: { gte: pToday, lt: pTomorrow },
+      },
+      select: { distanceM: true },
+    });
+
+    const todayDistanceM = movements.reduce((sum, m) => sum + m.distanceM, 0);
+    const todayKm = todayDistanceM / 1000;
+
+    if (todayKm < targetKm) {
+      return NextResponse.json({ error: `목표까지 ${(targetKm - todayKm).toFixed(1)}km 남았습니다.` }, { status: 400 });
+    }
+
+    const payout = Math.floor(prediction.betAmount * (prediction.multiplier || 1));
+
     const result = await prisma.$transaction(async (tx) => {
-      const prediction = await tx.gamePlay.findFirst({
-        where: {
-          id: predictionId,
-          userId: session.user.id,
-          gameType: "PREDICTION",
-          status: "PENDING",
-        },
-      });
-
-      if (!prediction) {
-        throw new Error("활성 예측이 없습니다.");
-      }
-
-      const targetKm = parseFloat(prediction.betChoice);
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
-
-      const movements = await tx.movement.findMany({
-        where: {
-          userId: session.user.id,
-          status: "COMPLETED",
-          completedAt: { gte: today, lt: tomorrow },
-        },
-        select: { distanceM: true },
-      });
-
-      const todayDistanceM = movements.reduce((sum, m) => sum + m.distanceM, 0);
-      const todayKm = todayDistanceM / 1000;
-
-      if (todayKm < targetKm) {
-        throw new Error(`목표까지 ${(targetKm - todayKm).toFixed(1)}km 남았습니다.`);
-      }
-
-      const payout = Math.floor(prediction.betAmount * (prediction.multiplier || 1));
-
       const updatedBalance = await tx.coinBalance.update({
         where: { userId: session.user.id },
         data: {
@@ -275,7 +281,7 @@ export async function PATCH(req: Request) {
         todayKm: todayKm.toFixed(1),
         scBalance: updatedBalance.scBalance,
       };
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json(result);
   } catch (error) {

@@ -44,38 +44,37 @@ export async function POST(req: Request) {
     const isCorrect = selectedIndex === question.correctIndex;
     const mcEarned = isCorrect ? QUIZ_MC_REWARD : 0;
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Check daily limit INSIDE transaction
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+    // Pre-check outside transaction
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const todayAttempts = await tx.quizAttempt.count({
+    const [preAttempts, preAlready] = await Promise.all([
+      prisma.quizAttempt.count({
         where: {
           userId: session.user.id,
           createdAt: { gte: today, lt: tomorrow },
         },
-      });
-
-      if (todayAttempts >= QUIZ_DAILY_LIMIT) {
-        throw new Error("LIMIT:오늘의 퀴즈 횟수를 모두 사용했습니다.");
-      }
-
-      // Check if already attempted this question today
-      const alreadyAttempted = await tx.quizAttempt.findFirst({
+      }),
+      prisma.quizAttempt.findFirst({
         where: {
           userId: session.user.id,
           questionId,
           createdAt: { gte: today, lt: tomorrow },
         },
-      });
+      }),
+    ]);
 
-      if (alreadyAttempted) {
-        throw new Error("LIMIT:이미 이 문제를 풀었습니다.");
-      }
+    if (preAttempts >= QUIZ_DAILY_LIMIT) {
+      return NextResponse.json({ error: "오늘의 퀴즈 횟수를 모두 사용했습니다." }, { status: 400 });
+    }
+    if (preAlready) {
+      return NextResponse.json({ error: "이미 이 문제를 풀었습니다." }, { status: 400 });
+    }
 
-      // 1. Record attempt
+    const result = await prisma.$transaction(async (tx) => {
+      // Record attempt
       await tx.quizAttempt.create({
         data: {
           userId: session.user.id,
@@ -127,8 +126,8 @@ export async function POST(req: Request) {
         });
       }
 
-      return { balance, todayAttempts };
-    });
+      return { balance, todayAttempts: preAttempts };
+    }, { timeout: 15000 });
 
     return NextResponse.json({
       isCorrect,

@@ -11,25 +11,31 @@ export async function POST() {
   }
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      // Check daily limit INSIDE transaction
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+    // Pre-check outside transaction
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const todayPlays = await tx.roulettePlay.count({
+    const [preBalance, prePlays] = await Promise.all([
+      prisma.coinBalance.findUnique({ where: { userId: session.user.id } }),
+      prisma.roulettePlay.count({
         where: {
           userId: session.user.id,
           createdAt: { gte: today, lt: tomorrow },
         },
-      });
+      }),
+    ]);
 
-      if (todayPlays >= ROULETTE_DAILY_LIMIT) {
-        throw new Error("LIMIT:오늘의 룰렛 횟수를 모두 사용했습니다.");
-      }
+    if (prePlays >= ROULETTE_DAILY_LIMIT) {
+      return NextResponse.json({ error: "오늘의 룰렛 횟수를 모두 사용했습니다." }, { status: 400 });
+    }
+    if (!preBalance || preBalance.scBalance < ROULETTE_COST_SC) {
+      return NextResponse.json({ error: "SC가 부족합니다." }, { status: 400 });
+    }
 
-      // 1. Check SC balance
+    const result = await prisma.$transaction(async (tx) => {
+      // Re-check balance inside transaction
       const balance = await tx.coinBalance.findUnique({
         where: { userId: session.user.id },
       });
@@ -38,7 +44,7 @@ export async function POST() {
         throw new Error("SC가 부족합니다.");
       }
 
-      // 2. Deduct SC
+      // Deduct SC
       const updatedBalance = await tx.coinBalance.update({
         where: { userId: session.user.id },
         data: { scBalance: { decrement: ROULETTE_COST_SC } },
@@ -119,9 +125,9 @@ export async function POST() {
         reward,
         newScBalance: finalBalance.scBalance,
         newMcBalance: finalBalance.mcBalance,
-        remainingPlays: ROULETTE_DAILY_LIMIT - todayPlays - 1,
+        remainingPlays: ROULETTE_DAILY_LIMIT - prePlays - 1,
       };
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json(result);
   } catch (error) {

@@ -180,7 +180,7 @@ export async function PATCH(req: Request) {
       });
 
       return { scBalance: balance.scBalance };
-    });
+    }, { timeout: 15000 });
 
     if (isComplete) {
       await updateProgress(session.user.id, { type: "COURSE_COMPLETE" });

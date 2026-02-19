@@ -83,7 +83,7 @@ export async function POST(req: Request) {
         successRate: Math.round(successRate * 100),
         newMcBalance: updatedBalance.mcBalance,
       };
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json(result);
   } catch (error) {

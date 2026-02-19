@@ -72,7 +72,6 @@ export async function GET() {
           payout = bet.betAmount * NUMBER_PAYOUT;
         }
 
-        // Settle the bet in a transaction
         await prisma.$transaction(async (tx) => {
           await tx.ringBet.update({
             where: { id: bet.id },
@@ -105,7 +104,7 @@ export async function GET() {
               },
             });
           }
-        });
+        }, { timeout: 15000 });
 
         settledBets.push({
           betId: bet.id,

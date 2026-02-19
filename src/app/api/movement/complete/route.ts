@@ -209,7 +209,7 @@ export async function POST(req: Request) {
       });
 
       return { completedMovement, balance, scBreakdown };
-    });
+    }, { timeout: 15000 });
 
     // ─── Milestone Bonuses ───
     let milestoneBonusSc = 0;
