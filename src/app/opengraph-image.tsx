@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const alt = "StepMeal - 움직여서 벌고, 건강하게 먹자";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -65,37 +66,48 @@ export default async function OgImage() {
 
         {/* Feature pills */}
         <div style={{ display: "flex", gap: "16px" }}>
-          {[
-            { label: "걸어서 SC 코인 획득", color: "#22C55E" },
-            { label: "QR 스캔으로 MC 코인", color: "#F59E0B" },
-            { label: "미니게임 & NFT", color: "#A855F7" },
-          ].map((item) => (
-            <div
-              key={item.label}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "12px 24px",
-                borderRadius: "999px",
-                background: `${item.color}15`,
-                border: `1.5px solid ${item.color}40`,
-              }}
-            >
-              <div
-                style={{
-                  width: "10px",
-                  height: "10px",
-                  borderRadius: "50%",
-                  background: item.color,
-                  display: "flex",
-                }}
-              />
-              <span style={{ fontSize: "20px", color: item.color, fontWeight: 600 }}>
-                {item.label}
-              </span>
-            </div>
-          ))}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "12px 24px",
+              borderRadius: "999px",
+              background: "rgba(34,197,94,0.08)",
+              border: "1.5px solid rgba(34,197,94,0.25)",
+            }}
+          >
+            <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#22C55E", display: "flex" }} />
+            <span style={{ fontSize: "20px", color: "#22C55E", fontWeight: 600 }}>걸어서 SC 코인 획득</span>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "12px 24px",
+              borderRadius: "999px",
+              background: "rgba(245,158,11,0.08)",
+              border: "1.5px solid rgba(245,158,11,0.25)",
+            }}
+          >
+            <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#F59E0B", display: "flex" }} />
+            <span style={{ fontSize: "20px", color: "#F59E0B", fontWeight: 600 }}>QR 스캔으로 MC 코인</span>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "12px 24px",
+              borderRadius: "999px",
+              background: "rgba(168,85,247,0.08)",
+              border: "1.5px solid rgba(168,85,247,0.25)",
+            }}
+          >
+            <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#A855F7", display: "flex" }} />
+            <span style={{ fontSize: "20px", color: "#A855F7", fontWeight: 600 }}>미니게임 & NFT</span>
+          </div>
         </div>
 
         {/* Domain */}
