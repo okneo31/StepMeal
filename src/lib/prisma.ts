@@ -8,7 +8,7 @@ function createPrismaClient() {
 
   try {
     const url = new URL(raw);
-    url.searchParams.set("connection_limit", "1");
+    url.searchParams.set("connection_limit", "5");
     url.searchParams.set("pool_timeout", "20");
     url.searchParams.set("connect_timeout", "15");
     return new PrismaClient({
