@@ -255,7 +255,7 @@ export default function ProfilePage() {
           </button>
           {isAdmin(session?.user?.email) && (
             <button
-              onClick={() => router.push("/admin/orders")}
+              onClick={() => router.push("/admin")}
               className="w-full text-left py-3.5 px-4 text-sm text-amber-400 flex justify-between items-center hover:bg-[var(--color-surface-hover)] transition-colors"
             >
               <span className="flex items-center gap-2">
@@ -263,7 +263,7 @@ export default function ProfilePage() {
                   <path d="M2 4H14M2 4V12C2 12.6 2.4 13 3 13H13C13.6 13 14 12.6 14 12V4M2 4L3.3 2.3C3.5 2.1 3.7 2 4 2H12C12.3 2 12.5 2.1 12.7 2.3L14 4" stroke="#F59E0B" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
                   <path d="M6 7H10" stroke="#F59E0B" strokeWidth="1.2" strokeLinecap="round"/>
                 </svg>
-                주문 관리 (관리자)
+                관리자 콘솔
               </span>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M6 4L10 8L6 12" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
