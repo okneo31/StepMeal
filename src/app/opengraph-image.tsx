@@ -1,16 +1,15 @@
 import { ImageResponse } from "next/og";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 export const dynamic = "force-dynamic";
 export const alt = "StepMeal - 움직여서 벌고, 건강하게 먹자";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default async function OgImage() {
-  const logoBuffer = await readFile(join(process.cwd(), "public", "logo.webp"));
-  const logoBase64 = `data:image/webp;base64,${logoBuffer.toString("base64")}`;
+  const logoRes = await fetch(new URL("/logo.webp", "https://www.stepmeal.top"));
+  const logoArrayBuffer = await logoRes.arrayBuffer();
+  const logoBase64 = `data:image/webp;base64,${Buffer.from(logoArrayBuffer).toString("base64")}`;
 
   return new ImageResponse(
     (
