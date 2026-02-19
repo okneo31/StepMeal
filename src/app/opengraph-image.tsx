@@ -1,11 +1,16 @@
 import { ImageResponse } from "next/og";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 export const alt = "StepMeal - 움직여서 벌고, 건강하게 먹자";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OgImage() {
+export default async function OgImage() {
+  const logoBuffer = await readFile(join(process.cwd(), "public", "logo.webp"));
+  const logoBase64 = `data:image/webp;base64,${logoBuffer.toString("base64")}`;
+
   return new ImageResponse(
     (
       <div
@@ -46,68 +51,17 @@ export default function OgImage() {
           }}
         />
 
-        {/* Icon */}
-        <div
+        {/* Logo */}
+        <img
+          src={logoBase64}
+          width={360}
+          height={360}
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "120px",
-            height: "120px",
-            borderRadius: "32px",
-            background: "linear-gradient(135deg, #22C55E 0%, #16A34A 100%)",
-            marginBottom: "32px",
-            boxShadow: "0 0 60px rgba(34,197,94,0.3)",
+            objectFit: "contain",
+            marginBottom: "16px",
+            borderRadius: "24px",
           }}
-        >
-          <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-            <path
-              d="M32 8L20 20V44L32 56L44 44V20L32 8Z"
-              fill="white"
-              fillOpacity="0.9"
-            />
-            <path
-              d="M24 28L32 20L40 28"
-              stroke="#16A34A"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M32 20V44"
-              stroke="#16A34A"
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
-
-        {/* Title */}
-        <div
-          style={{
-            fontSize: "64px",
-            fontWeight: 800,
-            color: "#FFFFFF",
-            letterSpacing: "-1px",
-            marginBottom: "12px",
-            display: "flex",
-          }}
-        >
-          StepMeal
-        </div>
-
-        {/* Subtitle */}
-        <div
-          style={{
-            fontSize: "28px",
-            fontWeight: 500,
-            color: "rgba(255,255,255,0.6)",
-            marginBottom: "40px",
-            display: "flex",
-          }}
-        >
-          Move to Earn, Eat Healthy
-        </div>
+        />
 
         {/* Feature pills */}
         <div style={{ display: "flex", gap: "16px" }}>
