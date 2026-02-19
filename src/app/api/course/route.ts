@@ -149,38 +149,35 @@ export async function PATCH(req: Request) {
 
     const totalReward = cp.rewardSc + (isComplete ? attempt.course.completionBonus : 0);
 
-    const result = await prisma.$transaction(async (tx) => {
-      await tx.courseAttempt.update({
-        where: { id: attempt.id },
-        data: {
-          currentCheckpoint: newIdx,
-          completedChecks: JSON.stringify(completedChecks),
-          totalEarned: { increment: totalReward },
-          status: isComplete ? "COMPLETED" : "ACTIVE",
-          completedAt: isComplete ? new Date() : undefined,
-        },
-      });
+    // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
+    await prisma.courseAttempt.update({
+      where: { id: attempt.id },
+      data: {
+        currentCheckpoint: newIdx,
+        completedChecks: JSON.stringify(completedChecks),
+        totalEarned: { increment: totalReward },
+        status: isComplete ? "COMPLETED" : "ACTIVE",
+        completedAt: isComplete ? new Date() : undefined,
+      },
+    });
 
-      const balance = await tx.coinBalance.update({
-        where: { userId: session.user.id },
-        data: { scBalance: { increment: totalReward }, scLifetime: { increment: totalReward } },
-      });
+    const courseBalance = await prisma.coinBalance.update({
+      where: { userId: session.user.id },
+      data: { scBalance: { increment: totalReward }, scLifetime: { increment: totalReward } },
+    });
 
-      await tx.coinTransaction.create({
-        data: {
-          userId: session.user.id,
-          coinType: "SC",
-          amount: totalReward,
-          balanceAfter: balance.scBalance,
-          sourceType: "CHALLENGE",
-          description: isComplete
-            ? `코스 완주: ${attempt.course.name} (+${attempt.course.completionBonus} 완주 보너스)`
-            : `코스 체크포인트: ${cp.name}`,
-        },
-      });
-
-      return { scBalance: balance.scBalance };
-    }, { timeout: 15000 });
+    await prisma.coinTransaction.create({
+      data: {
+        userId: session.user.id,
+        coinType: "SC",
+        amount: totalReward,
+        balanceAfter: courseBalance.scBalance,
+        sourceType: "CHALLENGE",
+        description: isComplete
+          ? `코스 완주: ${attempt.course.name} (+${attempt.course.completionBonus} 완주 보너스)`
+          : `코스 체크포인트: ${cp.name}`,
+      },
+    });
 
     if (isComplete) {
       await updateProgress(session.user.id, { type: "COURSE_COMPLETE" });
@@ -193,7 +190,7 @@ export async function PATCH(req: Request) {
       currentCheckpoint: newIdx,
       completedChecks,
       totalEarned: attempt.totalEarned + totalReward,
-      scBalance: result.scBalance,
+      scBalance: courseBalance.scBalance,
     });
   } catch (error) {
     console.error("Course verify error:", error);

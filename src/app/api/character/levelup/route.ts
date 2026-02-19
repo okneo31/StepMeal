@@ -17,40 +17,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "잘못된 스탯입니다." }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const character = await tx.character.findUnique({
-        where: { userId: session.user.id },
-      });
+    // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
+    const character = await prisma.character.findUnique({
+      where: { userId: session.user.id },
+    });
 
-      if (!character) {
-        throw new Error("캐릭터를 찾을 수 없습니다.");
-      }
+    if (!character) {
+      throw new Error("캐릭터를 찾을 수 없습니다.");
+    }
 
-      if (character.exp < character.expToNext) {
-        throw new Error("경험치가 부족합니다.");
-      }
+    if (character.exp < character.expToNext) {
+      throw new Error("경험치가 부족합니다.");
+    }
 
-      // Level up
-      const newLevel = character.level + 1;
-      const remainingExp = character.exp - character.expToNext;
-      const newExpToNext = EXP_PER_LEVEL(newLevel);
+    // Level up
+    const newLevel = character.level + 1;
+    const remainingExp = character.exp - character.expToNext;
+    const newExpToNext = EXP_PER_LEVEL(newLevel);
 
-      const statField = stat === "EFF" ? "statEff" : stat === "LCK" ? "statLck" : stat === "CHM" ? "statChm" : "statHp";
+    const statField = stat === "EFF" ? "statEff" : stat === "LCK" ? "statLck" : stat === "CHM" ? "statChm" : "statHp";
 
-      const updated = await tx.character.update({
-        where: { userId: session.user.id },
-        data: {
-          level: newLevel,
-          exp: remainingExp,
-          expToNext: newExpToNext,
-          [statField]: { increment: STATS_PER_LEVEL },
-        },
-      });
+    const updated = await prisma.character.update({
+      where: { userId: session.user.id },
+      data: {
+        level: newLevel,
+        exp: remainingExp,
+        expToNext: newExpToNext,
+        [statField]: { increment: STATS_PER_LEVEL },
+      },
+    });
 
-      return updated;
-    }, { timeout: 15000 });
-
-    return NextResponse.json(result);
+    return NextResponse.json(updated);
   } catch (error) {
     const message = error instanceof Error ? error.message : "서버 오류";
     return NextResponse.json({ error: message }, { status: 400 });

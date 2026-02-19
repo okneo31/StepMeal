@@ -130,7 +130,7 @@ export async function POST(req: Request) {
       },
     });
 
-    updateProgress(session.user.id, { type: "GAME_PLAY" }).catch(() => {});
+    await updateProgress(session.user.id, { type: "GAME_PLAY" }).catch(() => {});
     return NextResponse.json({
       coinResult,
       pick,

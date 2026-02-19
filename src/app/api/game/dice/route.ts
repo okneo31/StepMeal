@@ -161,7 +161,8 @@ export async function POST(req: Request) {
       },
     });
 
-    updateProgress(session.user.id, { type: "GAME_PLAY" }).catch(() => {});
+    // Await progress update to prevent connection pool exhaustion
+    await updateProgress(session.user.id, { type: "GAME_PLAY" }).catch(() => {});
     return NextResponse.json({
       roll,
       betType,

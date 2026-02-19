@@ -47,39 +47,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "잘못된 업적입니다." }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const ua = await tx.userAchievement.findUnique({
-        where: { userId_achievementCode: { userId: session.user.id, achievementCode: code } },
-      });
+    // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
+    const ua = await prisma.userAchievement.findUnique({
+      where: { userId_achievementCode: { userId: session.user.id, achievementCode: code } },
+    });
 
-      if (!ua || !ua.completed) throw new Error("아직 완료되지 않은 업적입니다.");
-      if (ua.claimed) throw new Error("이미 수령한 보상입니다.");
+    if (!ua || !ua.completed) throw new Error("아직 완료되지 않은 업적입니다.");
+    if (ua.claimed) throw new Error("이미 수령한 보상입니다.");
 
-      await tx.userAchievement.update({
-        where: { id: ua.id },
-        data: { claimed: true },
-      });
+    await prisma.userAchievement.update({
+      where: { id: ua.id },
+      data: { claimed: true },
+    });
 
-      const balance = await tx.coinBalance.update({
-        where: { userId: session.user.id },
-        data: { scBalance: { increment: achDef.rewardSc }, scLifetime: { increment: achDef.rewardSc } },
-      });
+    const achBalance = await prisma.coinBalance.update({
+      where: { userId: session.user.id },
+      data: { scBalance: { increment: achDef.rewardSc }, scLifetime: { increment: achDef.rewardSc } },
+    });
 
-      await tx.coinTransaction.create({
-        data: {
-          userId: session.user.id,
-          coinType: "SC",
-          amount: achDef.rewardSc,
-          balanceAfter: balance.scBalance,
-          sourceType: "CHALLENGE",
-          description: `업적 달성: ${achDef.name}`,
-        },
-      });
+    await prisma.coinTransaction.create({
+      data: {
+        userId: session.user.id,
+        coinType: "SC",
+        amount: achDef.rewardSc,
+        balanceAfter: achBalance.scBalance,
+        sourceType: "CHALLENGE",
+        description: `업적 달성: ${achDef.name}`,
+      },
+    });
 
-      return { scBalance: balance.scBalance, rewardSc: achDef.rewardSc };
-    }, { timeout: 15000 });
-
-    return NextResponse.json(result);
+    return NextResponse.json({ scBalance: achBalance.scBalance, rewardSc: achDef.rewardSc });
   } catch (error) {
     const message = error instanceof Error ? error.message : "서버 오류";
     return NextResponse.json({ error: message }, { status: 400 });

@@ -148,56 +148,53 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "수령 가능한 미션이 아닙니다." }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      await tx.dailyMission.update({
-        where: { id: mission.id },
-        data: { status: "CLAIMED" },
+    // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
+    await prisma.dailyMission.update({
+      where: { id: mission.id },
+      data: { status: "CLAIMED" },
+    });
+
+    let missionScBal = 0;
+    let missionMcBal = 0;
+
+    if (mission.rewardSc > 0) {
+      const b = await prisma.coinBalance.update({
+        where: { userId: session.user.id },
+        data: { scBalance: { increment: mission.rewardSc }, scLifetime: { increment: mission.rewardSc } },
       });
+      missionScBal = b.scBalance;
+      missionMcBal = b.mcBalance;
+      await prisma.coinTransaction.create({
+        data: {
+          userId: session.user.id,
+          coinType: "SC",
+          amount: mission.rewardSc,
+          balanceAfter: b.scBalance,
+          sourceType: "CHALLENGE",
+          description: `데일리 미션: ${mission.description}`,
+        },
+      });
+    }
+    if (mission.rewardMc > 0) {
+      const b = await prisma.coinBalance.update({
+        where: { userId: session.user.id },
+        data: { mcBalance: { increment: mission.rewardMc }, mcLifetime: { increment: mission.rewardMc } },
+      });
+      missionScBal = b.scBalance;
+      missionMcBal = b.mcBalance;
+      await prisma.coinTransaction.create({
+        data: {
+          userId: session.user.id,
+          coinType: "MC",
+          amount: mission.rewardMc,
+          balanceAfter: b.mcBalance,
+          sourceType: "CHALLENGE",
+          description: `데일리 미션: ${mission.description}`,
+        },
+      });
+    }
 
-      let scBal = 0;
-      let mcBal = 0;
-
-      if (mission.rewardSc > 0) {
-        const b = await tx.coinBalance.update({
-          where: { userId: session.user.id },
-          data: { scBalance: { increment: mission.rewardSc }, scLifetime: { increment: mission.rewardSc } },
-        });
-        scBal = b.scBalance;
-        mcBal = b.mcBalance;
-        await tx.coinTransaction.create({
-          data: {
-            userId: session.user.id,
-            coinType: "SC",
-            amount: mission.rewardSc,
-            balanceAfter: b.scBalance,
-            sourceType: "CHALLENGE",
-            description: `데일리 미션: ${mission.description}`,
-          },
-        });
-      }
-      if (mission.rewardMc > 0) {
-        const b = await tx.coinBalance.update({
-          where: { userId: session.user.id },
-          data: { mcBalance: { increment: mission.rewardMc }, mcLifetime: { increment: mission.rewardMc } },
-        });
-        scBal = b.scBalance;
-        mcBal = b.mcBalance;
-        await tx.coinTransaction.create({
-          data: {
-            userId: session.user.id,
-            coinType: "MC",
-            amount: mission.rewardMc,
-            balanceAfter: b.mcBalance,
-            sourceType: "CHALLENGE",
-            description: `데일리 미션: ${mission.description}`,
-          },
-        });
-      }
-
-      return { scBalance: scBal, mcBalance: mcBal };
-    }, { timeout: 15000 });
-
-    return NextResponse.json({ ...result, rewardSc: mission.rewardSc, rewardMc: mission.rewardMc });
+    return NextResponse.json({ scBalance: missionScBal, mcBalance: missionMcBal, rewardSc: mission.rewardSc, rewardMc: mission.rewardMc });
   } catch (error) {
     console.error("Mission claim error:", error);
     return NextResponse.json({ error: "서버 오류" }, { status: 500 });

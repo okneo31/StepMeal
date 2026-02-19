@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       },
     });
 
-    updateProgress(session.user.id, { type: "QUEST_COMPLETE" }).catch(() => {});
+    await updateProgress(session.user.id, { type: "QUEST_COMPLETE" }).catch(() => {});
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Quest complete error:", error);

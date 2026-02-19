@@ -103,113 +103,109 @@ export async function POST(req: Request) {
       return sum + estimateCalories(s.distance / 1000, s.transport);
     }, 0);
 
-    // Atomic transaction: update movement + balance + create transaction + update stride
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Complete movement
-      const completedMovement = await tx.movement.update({
-        where: { id: movementId },
-        data: {
-          status: "COMPLETED",
-          endLat: lastPoint?.lat || null,
-          endLng: lastPoint?.lng || null,
-          distanceM: totalDistance,
-          durationSec: totalDuration,
-          segments: JSON.stringify(segments),
-          transportClass,
-          isMulti,
-          multiClassCount: getMultiClassCount(segments),
-          weather,
-          timeSlot: getTimeSlot(now),
-          calories: totalCalories,
-          baseSc: scBreakdown.baseSc,
-          transportMult: scBreakdown.transportMult,
-          strideMult: scBreakdown.strideMult,
-          timeMult: scBreakdown.timeMult,
-          weatherMult: scBreakdown.weatherMult,
-          multiMult: scBreakdown.multiMult,
-          bonusSc: scBreakdown.bonusSc,
-          totalSc: scBreakdown.totalSc,
-          completedAt: now,
-        },
-      });
+    // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
+    // 1. Complete movement
+    await prisma.movement.update({
+      where: { id: movementId },
+      data: {
+        status: "COMPLETED",
+        endLat: lastPoint?.lat || null,
+        endLng: lastPoint?.lng || null,
+        distanceM: totalDistance,
+        durationSec: totalDuration,
+        segments: JSON.stringify(segments),
+        transportClass,
+        isMulti,
+        multiClassCount: getMultiClassCount(segments),
+        weather,
+        timeSlot: getTimeSlot(now),
+        calories: totalCalories,
+        baseSc: scBreakdown.baseSc,
+        transportMult: scBreakdown.transportMult,
+        strideMult: scBreakdown.strideMult,
+        timeMult: scBreakdown.timeMult,
+        weatherMult: scBreakdown.weatherMult,
+        multiMult: scBreakdown.multiMult,
+        bonusSc: scBreakdown.bonusSc,
+        totalSc: scBreakdown.totalSc,
+        completedAt: now,
+      },
+    });
 
-      // 2. Update coin balance
-      const balance = await tx.coinBalance.update({
-        where: { userId: session.user.id },
-        data: {
-          scBalance: { increment: scBreakdown.totalSc },
-          scLifetime: { increment: scBreakdown.totalSc },
-        },
-      });
+    // 2. Update coin balance
+    const balance = await prisma.coinBalance.update({
+      where: { userId: session.user.id },
+      data: {
+        scBalance: { increment: scBreakdown.totalSc },
+        scLifetime: { increment: scBreakdown.totalSc },
+      },
+    });
 
-      // 3. Create transaction record
-      await tx.coinTransaction.create({
-        data: {
-          userId: session.user.id,
-          coinType: "SC",
-          amount: scBreakdown.totalSc,
-          balanceAfter: balance.scBalance,
-          sourceType: "MOVEMENT",
-          sourceId: movementId,
-          description: `이동 완료 (${(totalDistance / 1000).toFixed(1)}km)`,
-          multipliers: JSON.stringify(scBreakdown),
-        },
-      });
+    // 3. Create transaction record
+    await prisma.coinTransaction.create({
+      data: {
+        userId: session.user.id,
+        coinType: "SC",
+        amount: scBreakdown.totalSc,
+        balanceAfter: balance.scBalance,
+        sourceType: "MOVEMENT",
+        sourceId: movementId,
+        description: `이동 완료 (${(totalDistance / 1000).toFixed(1)}km)`,
+        multipliers: JSON.stringify(scBreakdown),
+      },
+    });
 
-      // 4. Update daily earning
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      await tx.dailyEarning.upsert({
-        where: {
-          userId_earnDate: { userId: session.user.id, earnDate: today },
-        },
-        create: {
-          userId: session.user.id,
-          earnDate: today,
-          scMovement: scBreakdown.totalSc,
-          distanceM: totalDistance,
-          strideActive: totalDistance >= MIN_DAILY_DISTANCE,
-        },
-        update: {
-          scMovement: { increment: scBreakdown.totalSc },
-          distanceM: { increment: totalDistance },
-          strideActive: true,
-        },
-      });
+    // 4. Update daily earning
+    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    await prisma.dailyEarning.upsert({
+      where: {
+        userId_earnDate: { userId: session.user.id, earnDate: todayDate },
+      },
+      create: {
+        userId: session.user.id,
+        earnDate: todayDate,
+        scMovement: scBreakdown.totalSc,
+        distanceM: totalDistance,
+        strideActive: totalDistance >= MIN_DAILY_DISTANCE,
+      },
+      update: {
+        scMovement: { increment: scBreakdown.totalSc },
+        distanceM: { increment: totalDistance },
+        strideActive: true,
+      },
+    });
 
-      // 5. Update stride
-      const strideUpdate = calculateStrideUpdate(
-        stride?.currentStreak || 0,
-        stride?.strideLevel || 0,
-        stride?.shieldCount || 0,
-        (stride?.totalDistance || 0) + totalDistance,
-        0, // no days missed when completing a movement
-      );
+    // 5. Update stride
+    const strideUpdate = calculateStrideUpdate(
+      stride?.currentStreak || 0,
+      stride?.strideLevel || 0,
+      stride?.shieldCount || 0,
+      (stride?.totalDistance || 0) + totalDistance,
+      0, // no days missed when completing a movement
+    );
 
-      await tx.stride.upsert({
-        where: { userId: session.user.id },
-        create: {
-          userId: session.user.id,
-          currentStreak: strideUpdate.newStreak,
-          strideLevel: strideUpdate.newLevel,
-          strideMultiplier: STRIDE_TABLE[Math.max(0, Math.min(strideUpdate.newLevel, STRIDE_TABLE.length - 1))].multiplier,
-          longestStreak: Math.max(0, strideUpdate.newStreak),
-          lastActive: now,
-          shieldCount: strideUpdate.newShieldCount,
-          totalDistance: totalDistance,
-        },
-        update: {
-          currentStreak: strideUpdate.newStreak,
-          strideLevel: strideUpdate.newLevel,
-          strideMultiplier: STRIDE_TABLE[Math.max(0, Math.min(strideUpdate.newLevel, STRIDE_TABLE.length - 1))].multiplier,
-          longestStreak: Math.max(stride?.longestStreak || 0, strideUpdate.newStreak),
-          lastActive: now,
-          shieldCount: strideUpdate.newShieldCount,
-          totalDistance: { increment: totalDistance },
-        },
-      });
-
-      return { completedMovement, balance, scBreakdown };
-    }, { timeout: 15000 });
+    await prisma.stride.upsert({
+      where: { userId: session.user.id },
+      create: {
+        userId: session.user.id,
+        currentStreak: strideUpdate.newStreak,
+        strideLevel: strideUpdate.newLevel,
+        strideMultiplier: STRIDE_TABLE[Math.max(0, Math.min(strideUpdate.newLevel, STRIDE_TABLE.length - 1))].multiplier,
+        longestStreak: Math.max(0, strideUpdate.newStreak),
+        lastActive: now,
+        shieldCount: strideUpdate.newShieldCount,
+        totalDistance: totalDistance,
+      },
+      update: {
+        currentStreak: strideUpdate.newStreak,
+        strideLevel: strideUpdate.newLevel,
+        strideMultiplier: STRIDE_TABLE[Math.max(0, Math.min(strideUpdate.newLevel, STRIDE_TABLE.length - 1))].multiplier,
+        longestStreak: Math.max(stride?.longestStreak || 0, strideUpdate.newStreak),
+        lastActive: now,
+        shieldCount: strideUpdate.newShieldCount,
+        totalDistance: { increment: totalDistance },
+      },
+    });
 
     // ─── Milestone Bonuses ───
     let milestoneBonusSc = 0;
@@ -228,7 +224,7 @@ export async function POST(req: Request) {
       }
     }
 
-    let finalBalance = result.balance.scBalance;
+    let finalBalance = balance.scBalance;
     if (milestoneBonusSc > 0) {
       const bal = await prisma.coinBalance.update({
         where: { userId: session.user.id },
@@ -252,7 +248,7 @@ export async function POST(req: Request) {
       .filter((s) => s.transport === "WALK" || s.transport === "RUN")
       .reduce((sum, s) => sum + s.distance, 0);
 
-    updateProgress(session.user.id, {
+    await updateProgress(session.user.id, {
       type: "MOVEMENT_COMPLETE",
       distanceM: totalDistance,
       isMulti,

@@ -41,63 +41,60 @@ export async function POST(req: Request) {
     // Arrival verified - credit SC bonus in a transaction
     const now = new Date();
 
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Update quest status
-      const updatedQuest = await tx.quest.update({
-        where: { id: questId },
-        data: {
-          status: "ARRIVED",
-          arrivedAt: now,
-          bonusSc: QUEST_ARRIVAL_SC,
-        },
-      });
+    // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
+    // 1. Update quest status
+    const updatedQuest = await prisma.quest.update({
+      where: { id: questId },
+      data: {
+        status: "ARRIVED",
+        arrivedAt: now,
+        bonusSc: QUEST_ARRIVAL_SC,
+      },
+    });
 
-      // 2. Credit arrival SC
-      const balance = await tx.coinBalance.update({
-        where: { userId: session.user.id },
-        data: {
-          scBalance: { increment: QUEST_ARRIVAL_SC },
-          scLifetime: { increment: QUEST_ARRIVAL_SC },
-        },
-      });
+    // 2. Credit arrival SC
+    const arrivalBalance = await prisma.coinBalance.update({
+      where: { userId: session.user.id },
+      data: {
+        scBalance: { increment: QUEST_ARRIVAL_SC },
+        scLifetime: { increment: QUEST_ARRIVAL_SC },
+      },
+    });
 
-      // 3. Record transaction
-      await tx.coinTransaction.create({
-        data: {
-          userId: session.user.id,
-          coinType: "SC",
-          amount: QUEST_ARRIVAL_SC,
-          balanceAfter: balance.scBalance,
-          sourceType: "MOVEMENT",
-          description: `퀘스트 도착 보너스: ${quest.destName} (+${QUEST_ARRIVAL_SC} SC)`,
-        },
-      });
+    // 3. Record transaction
+    await prisma.coinTransaction.create({
+      data: {
+        userId: session.user.id,
+        coinType: "SC",
+        amount: QUEST_ARRIVAL_SC,
+        balanceAfter: arrivalBalance.scBalance,
+        sourceType: "MOVEMENT",
+        description: `퀘스트 도착 보너스: ${quest.destName} (+${QUEST_ARRIVAL_SC} SC)`,
+      },
+    });
 
-      // 4. Update daily earning
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      await tx.dailyEarning.upsert({
-        where: {
-          userId_earnDate: { userId: session.user.id, earnDate: today },
-        },
-        create: {
-          userId: session.user.id,
-          earnDate: today,
-          scMovement: QUEST_ARRIVAL_SC,
-        },
-        update: {
-          scMovement: { increment: QUEST_ARRIVAL_SC },
-        },
-      });
-
-      return { updatedQuest, balance };
-    }, { timeout: 15000 });
+    // 4. Update daily earning
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    await prisma.dailyEarning.upsert({
+      where: {
+        userId_earnDate: { userId: session.user.id, earnDate: today },
+      },
+      create: {
+        userId: session.user.id,
+        earnDate: today,
+        scMovement: QUEST_ARRIVAL_SC,
+      },
+      update: {
+        scMovement: { increment: QUEST_ARRIVAL_SC },
+      },
+    });
 
     return NextResponse.json({
       arrived: true,
       distanceM: Math.round(distanceM),
-      questId: result.updatedQuest.id,
+      questId: updatedQuest.id,
       arrivalBonus: QUEST_ARRIVAL_SC,
-      newScBalance: result.balance.scBalance,
+      newScBalance: arrivalBalance.scBalance,
       message: `목적지에 도착했습니다! +${QUEST_ARRIVAL_SC} SC`,
     });
   } catch (error) {

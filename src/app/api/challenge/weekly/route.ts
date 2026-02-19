@@ -56,58 +56,55 @@ export async function POST(req: Request) {
 
     const claimedField = `${tier.toLowerCase()}Claimed` as "bronzeClaimed" | "silverClaimed" | "goldClaimed";
 
-    const result = await prisma.$transaction(async (tx) => {
-      const challenge = await tx.weeklyChallenge.findUnique({
-        where: { userId_weekStart: { userId: session.user.id, weekStart } },
+    // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
+    const challenge = await prisma.weeklyChallenge.findUnique({
+      where: { userId_weekStart: { userId: session.user.id, weekStart } },
+    });
+    if (!challenge) throw new Error("챌린지가 없습니다.");
+    if (challenge.totalDistanceM < tierDef.targetM) throw new Error("목표 거리에 도달하지 못했습니다.");
+    if (challenge[claimedField]) throw new Error("이미 수령한 보상입니다.");
+
+    await prisma.weeklyChallenge.update({
+      where: { id: challenge.id },
+      data: { [claimedField]: true },
+    });
+
+    let weeklyBalance = await prisma.coinBalance.findUnique({ where: { userId: session.user.id } });
+
+    if (tierDef.rewardSc > 0) {
+      weeklyBalance = await prisma.coinBalance.update({
+        where: { userId: session.user.id },
+        data: { scBalance: { increment: tierDef.rewardSc }, scLifetime: { increment: tierDef.rewardSc } },
       });
-      if (!challenge) throw new Error("챌린지가 없습니다.");
-      if (challenge.totalDistanceM < tierDef.targetM) throw new Error("목표 거리에 도달하지 못했습니다.");
-      if (challenge[claimedField]) throw new Error("이미 수령한 보상입니다.");
-
-      await tx.weeklyChallenge.update({
-        where: { id: challenge.id },
-        data: { [claimedField]: true },
+      await prisma.coinTransaction.create({
+        data: {
+          userId: session.user.id,
+          coinType: "SC",
+          amount: tierDef.rewardSc,
+          balanceAfter: weeklyBalance!.scBalance,
+          sourceType: "CHALLENGE",
+          description: `주간 챌린지 ${tierDef.label} 달성`,
+        },
       });
+    }
+    if (tierDef.rewardMc > 0) {
+      weeklyBalance = await prisma.coinBalance.update({
+        where: { userId: session.user.id },
+        data: { mcBalance: { increment: tierDef.rewardMc }, mcLifetime: { increment: tierDef.rewardMc } },
+      });
+      await prisma.coinTransaction.create({
+        data: {
+          userId: session.user.id,
+          coinType: "MC",
+          amount: tierDef.rewardMc,
+          balanceAfter: weeklyBalance!.mcBalance,
+          sourceType: "CHALLENGE",
+          description: `주간 챌린지 ${tierDef.label} 달성`,
+        },
+      });
+    }
 
-      let balance = await tx.coinBalance.findUnique({ where: { userId: session.user.id } });
-
-      if (tierDef.rewardSc > 0) {
-        balance = await tx.coinBalance.update({
-          where: { userId: session.user.id },
-          data: { scBalance: { increment: tierDef.rewardSc }, scLifetime: { increment: tierDef.rewardSc } },
-        });
-        await tx.coinTransaction.create({
-          data: {
-            userId: session.user.id,
-            coinType: "SC",
-            amount: tierDef.rewardSc,
-            balanceAfter: balance!.scBalance,
-            sourceType: "CHALLENGE",
-            description: `주간 챌린지 ${tierDef.label} 달성`,
-          },
-        });
-      }
-      if (tierDef.rewardMc > 0) {
-        balance = await tx.coinBalance.update({
-          where: { userId: session.user.id },
-          data: { mcBalance: { increment: tierDef.rewardMc }, mcLifetime: { increment: tierDef.rewardMc } },
-        });
-        await tx.coinTransaction.create({
-          data: {
-            userId: session.user.id,
-            coinType: "MC",
-            amount: tierDef.rewardMc,
-            balanceAfter: balance!.mcBalance,
-            sourceType: "CHALLENGE",
-            description: `주간 챌린지 ${tierDef.label} 달성`,
-          },
-        });
-      }
-
-      return { scBalance: balance!.scBalance, mcBalance: balance!.mcBalance };
-    }, { timeout: 15000 });
-
-    return NextResponse.json({ ...result, rewardSc: tierDef.rewardSc, rewardMc: tierDef.rewardMc });
+    return NextResponse.json({ scBalance: weeklyBalance!.scBalance, mcBalance: weeklyBalance!.mcBalance, rewardSc: tierDef.rewardSc, rewardMc: tierDef.rewardMc });
   } catch (error) {
     const message = error instanceof Error ? error.message : "서버 오류";
     return NextResponse.json({ error: message }, { status: 400 });

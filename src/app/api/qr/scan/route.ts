@@ -72,109 +72,107 @@ export async function POST(req: Request) {
     const conditionRestore = partnerResult.condition_restore || 0;
     const productName = partnerResult.product_name || "QR 스캔";
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Check daily limit
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayScans = await tx.coinTransaction.count({
-        where: {
-          userId: session.user.id,
-          sourceType: "QR_SCAN",
-          createdAt: { gte: today },
-        },
-      });
+    // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
+    // Check daily limit
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayScans = await prisma.coinTransaction.count({
+      where: {
+        userId: session.user.id,
+        sourceType: "QR_SCAN",
+        createdAt: { gte: today },
+      },
+    });
 
-      if (todayScans >= QR_SCAN_DAILY_LIMIT) {
-        throw new Error(
-          `LIMIT:일일 QR 스캔 한도(${QR_SCAN_DAILY_LIMIT}회)를 초과했습니다.`
-        );
-      }
+    if (todayScans >= QR_SCAN_DAILY_LIMIT) {
+      return NextResponse.json(
+        { error: `일일 QR 스캔 한도(${QR_SCAN_DAILY_LIMIT}회)를 초과했습니다.` },
+        { status: 429 }
+      );
+    }
 
-      // Credit MC
-      const balance = await tx.coinBalance.update({
+    // Credit MC
+    const qrBalance = await prisma.coinBalance.update({
+      where: { userId: session.user.id },
+      data: {
+        mcBalance: { increment: mcReward },
+        mcLifetime: { increment: mcReward },
+      },
+    });
+
+    // Transaction record
+    await prisma.coinTransaction.create({
+      data: {
+        userId: session.user.id,
+        coinType: "MC",
+        amount: mcReward,
+        balanceAfter: qrBalance.mcBalance,
+        sourceType: "QR_SCAN",
+        description: `${productName} QR 스캔 (+${mcReward} MC)`,
+      },
+    });
+
+    // Update daily earning
+    const earnDate = new Date();
+    earnDate.setHours(0, 0, 0, 0);
+    await prisma.dailyEarning.upsert({
+      where: {
+        userId_earnDate: { userId: session.user.id, earnDate },
+      },
+      create: { userId: session.user.id, earnDate, mcQr: mcReward },
+      update: { mcQr: { increment: mcReward } },
+    });
+
+    // Restore character condition if applicable
+    if (conditionRestore > 0) {
+      const qrCharacter = await prisma.character.findUnique({
         where: { userId: session.user.id },
-        data: {
-          mcBalance: { increment: mcReward },
-          mcLifetime: { increment: mcReward },
-        },
       });
-
-      // Transaction record
-      await tx.coinTransaction.create({
-        data: {
-          userId: session.user.id,
-          coinType: "MC",
-          amount: mcReward,
-          balanceAfter: balance.mcBalance,
-          sourceType: "QR_SCAN",
-          description: `${productName} QR 스캔 (+${mcReward} MC)`,
-        },
-      });
-
-      // Update daily earning
-      const earnDate = new Date();
-      earnDate.setHours(0, 0, 0, 0);
-      await tx.dailyEarning.upsert({
-        where: {
-          userId_earnDate: { userId: session.user.id, earnDate },
-        },
-        create: { userId: session.user.id, earnDate, mcQr: mcReward },
-        update: { mcQr: { increment: mcReward } },
-      });
-
-      // Restore character condition if applicable
-      if (conditionRestore > 0) {
-        const character = await tx.character.findUnique({
+      if (qrCharacter) {
+        const newCondition = Math.min(
+          qrCharacter.maxCondition,
+          qrCharacter.condition + conditionRestore
+        );
+        await prisma.character.update({
           where: { userId: session.user.id },
+          data: { condition: newCondition },
         });
-        if (character) {
-          const newCondition = Math.min(
-            character.maxCondition,
-            character.condition + conditionRestore
-          );
-          await tx.character.update({
-            where: { userId: session.user.id },
-            data: { condition: newCondition },
-          });
-        }
       }
+    }
 
-      // Activate SC booster (24h)
-      const { multiplier: boostMult, boosterType } = getBoosterMultiplier(partnerResult.qr_type);
-      const now = new Date();
-      const expiresAt = new Date(now.getTime() + BOOSTER_DURATION_HOURS * 60 * 60 * 1000);
+    // Activate SC booster (24h)
+    const { multiplier: boostMult, boosterType } = getBoosterMultiplier(partnerResult.qr_type);
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + BOOSTER_DURATION_HOURS * 60 * 60 * 1000);
 
-      // Upsert: overwrite existing booster
-      const existingBooster = await tx.activeBooster.findFirst({
-        where: { userId: session.user.id, expiresAt: { gt: now } },
-        orderBy: { activatedAt: "desc" },
+    // Upsert: overwrite existing booster
+    const existingBooster = await prisma.activeBooster.findFirst({
+      where: { userId: session.user.id, expiresAt: { gt: now } },
+      orderBy: { activatedAt: "desc" },
+    });
+
+    if (existingBooster) {
+      await prisma.activeBooster.update({
+        where: { id: existingBooster.id },
+        data: { boosterType, multiplier: boostMult, productName, activatedAt: now, expiresAt },
       });
-
-      if (existingBooster) {
-        await tx.activeBooster.update({
-          where: { id: existingBooster.id },
-          data: { boosterType, multiplier: boostMult, productName, activatedAt: now, expiresAt },
-        });
-      } else {
-        await tx.activeBooster.create({
-          data: { userId: session.user.id, boosterType, multiplier: boostMult, productName, activatedAt: now, expiresAt },
-        });
-      }
-
-      return { balance, boosterMult: boostMult, boosterType };
-    }, { timeout: 15000 });
+    } else {
+      await prisma.activeBooster.create({
+        data: { userId: session.user.id, boosterType, multiplier: boostMult, productName, activatedAt: now, expiresAt },
+      });
+    }
 
     return NextResponse.json({
       success: true,
       mcReward,
       description: `${productName} (+${mcReward} MC)`,
-      newMcBalance: result.balance.mcBalance,
+      newMcBalance: qrBalance.mcBalance,
       conditionRestore,
       qrType: partnerResult.qr_type,
       booster: {
         activated: true,
-        multiplier: result.boosterMult,
-        type: result.boosterType,
+        multiplier: boostMult,
+        type: boosterType,
         durationHours: BOOSTER_DURATION_HOURS,
       },
     });
@@ -215,63 +213,61 @@ async function localScan(code: string, userId: string) {
     );
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayScans = await tx.qrCode.count({
-      where: { usedBy: userId, usedAt: { gte: today } },
-    });
+  // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
+  const localToday = new Date();
+  localToday.setHours(0, 0, 0, 0);
+  const localTodayScans = await prisma.qrCode.count({
+    where: { usedBy: userId, usedAt: { gte: localToday } },
+  });
 
-    if (todayScans >= QR_SCAN_DAILY_LIMIT) {
-      throw new Error(
-        `LIMIT:일일 QR 스캔 한도(${QR_SCAN_DAILY_LIMIT}회)를 초과했습니다.`
-      );
-    }
+  if (localTodayScans >= QR_SCAN_DAILY_LIMIT) {
+    return NextResponse.json(
+      { error: `일일 QR 스캔 한도(${QR_SCAN_DAILY_LIMIT}회)를 초과했습니다.` },
+      { status: 429 }
+    );
+  }
 
-    const freshQr = await tx.qrCode.findUnique({ where: { id: qrCode.id } });
-    if (!freshQr || freshQr.isUsed) {
-      throw new Error("이미 사용된 QR코드입니다.");
-    }
+  const freshQr = await prisma.qrCode.findUnique({ where: { id: qrCode.id } });
+  if (!freshQr || freshQr.isUsed) {
+    return NextResponse.json({ error: "이미 사용된 QR코드입니다." }, { status: 409 });
+  }
 
-    await tx.qrCode.update({
-      where: { id: qrCode.id },
-      data: { isUsed: true, usedBy: userId, usedAt: new Date() },
-    });
+  await prisma.qrCode.update({
+    where: { id: qrCode.id },
+    data: { isUsed: true, usedBy: userId, usedAt: new Date() },
+  });
 
-    const balance = await tx.coinBalance.update({
-      where: { userId },
-      data: {
-        mcBalance: { increment: qrCode.mcReward },
-        mcLifetime: { increment: qrCode.mcReward },
-      },
-    });
+  const localBalance = await prisma.coinBalance.update({
+    where: { userId },
+    data: {
+      mcBalance: { increment: qrCode.mcReward },
+      mcLifetime: { increment: qrCode.mcReward },
+    },
+  });
 
-    await tx.coinTransaction.create({
-      data: {
-        userId,
-        coinType: "MC",
-        amount: qrCode.mcReward,
-        balanceAfter: balance.mcBalance,
-        sourceType: "QR_SCAN",
-        description: qrCode.description || `QR 스캔 보상 (+${qrCode.mcReward} MC)`,
-      },
-    });
+  await prisma.coinTransaction.create({
+    data: {
+      userId,
+      coinType: "MC",
+      amount: qrCode.mcReward,
+      balanceAfter: localBalance.mcBalance,
+      sourceType: "QR_SCAN",
+      description: qrCode.description || `QR 스캔 보상 (+${qrCode.mcReward} MC)`,
+    },
+  });
 
-    const earnDate = new Date();
-    earnDate.setHours(0, 0, 0, 0);
-    await tx.dailyEarning.upsert({
-      where: { userId_earnDate: { userId, earnDate } },
-      create: { userId, earnDate, mcQr: qrCode.mcReward },
-      update: { mcQr: { increment: qrCode.mcReward } },
-    });
-
-    return balance;
-  }, { timeout: 15000 });
+  const localEarnDate = new Date();
+  localEarnDate.setHours(0, 0, 0, 0);
+  await prisma.dailyEarning.upsert({
+    where: { userId_earnDate: { userId, earnDate: localEarnDate } },
+    create: { userId, earnDate: localEarnDate, mcQr: qrCode.mcReward },
+    update: { mcQr: { increment: qrCode.mcReward } },
+  });
 
   return NextResponse.json({
     success: true,
     mcReward: qrCode.mcReward,
     description: qrCode.description,
-    newMcBalance: result.mcBalance,
+    newMcBalance: localBalance.mcBalance,
   });
 }

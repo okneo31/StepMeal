@@ -15,78 +15,74 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "템플릿 ID가 필요합니다." }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Get template with lock-like read
-      const template = await tx.nftTemplate.findUnique({
-        where: { id: templateId },
-      });
+    // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
+    const template = await prisma.nftTemplate.findUnique({
+      where: { id: templateId },
+    });
 
-      if (!template || !template.isActive) {
-        throw new Error("NFT를 찾을 수 없습니다.");
-      }
+    if (!template || !template.isActive) {
+      throw new Error("NFT를 찾을 수 없습니다.");
+    }
 
-      // Check supply
-      if (template.maxSupply !== -1 && template.mintedCount >= template.maxSupply) {
-        throw new Error("재고가 소진되었습니다.");
-      }
+    // Check supply
+    if (template.maxSupply !== -1 && template.mintedCount >= template.maxSupply) {
+      throw new Error("재고가 소진되었습니다.");
+    }
 
-      // Check MC balance
-      const balance = await tx.coinBalance.findUnique({
-        where: { userId: session.user.id },
-      });
+    // Check MC balance
+    const mintBalance = await prisma.coinBalance.findUnique({
+      where: { userId: session.user.id },
+    });
 
-      if (!balance || balance.mcBalance < template.priceMc) {
-        throw new Error(`MC가 부족합니다. (필요: ${template.priceMc} MC, 보유: ${balance?.mcBalance || 0} MC)`);
-      }
+    if (!mintBalance || mintBalance.mcBalance < template.priceMc) {
+      throw new Error(`MC가 부족합니다. (필요: ${template.priceMc} MC, 보유: ${mintBalance?.mcBalance || 0} MC)`);
+    }
 
-      // Increment minted count
-      const updatedTemplate = await tx.nftTemplate.update({
-        where: { id: templateId },
-        data: { mintedCount: { increment: 1 } },
-      });
+    // Increment minted count
+    const updatedTemplate = await prisma.nftTemplate.update({
+      where: { id: templateId },
+      data: { mintedCount: { increment: 1 } },
+    });
 
-      // Create UserNft
-      const nft = await tx.userNft.create({
-        data: {
-          userId: session.user.id,
-          templateId,
-          mintNumber: updatedTemplate.mintedCount,
-        },
-      });
+    // Create UserNft
+    const mintedNft = await prisma.userNft.create({
+      data: {
+        userId: session.user.id,
+        templateId,
+        mintNumber: updatedTemplate.mintedCount,
+      },
+    });
 
-      // Deduct MC
-      const updatedBalance = await tx.coinBalance.update({
-        where: { userId: session.user.id },
-        data: {
-          mcBalance: { decrement: template.priceMc },
-        },
-      });
+    // Deduct MC
+    const updatedMintBalance = await prisma.coinBalance.update({
+      where: { userId: session.user.id },
+      data: {
+        mcBalance: { decrement: template.priceMc },
+      },
+    });
 
-      // Transaction record
-      await tx.coinTransaction.create({
-        data: {
-          userId: session.user.id,
-          coinType: "MC",
-          amount: -template.priceMc,
-          balanceAfter: updatedBalance.mcBalance,
-          sourceType: "NFT_MINT",
-          description: `NFT 민팅: ${template.name} #${updatedTemplate.mintedCount}`,
-        },
-      });
-
-      return { nft, template: updatedTemplate, newMcBalance: updatedBalance.mcBalance };
-    }, { timeout: 15000 });
+    // Transaction record
+    await prisma.coinTransaction.create({
+      data: {
+        userId: session.user.id,
+        coinType: "MC",
+        amount: -template.priceMc,
+        balanceAfter: updatedMintBalance.mcBalance,
+        sourceType: "NFT_MINT",
+        description: `NFT 민팅: ${template.name} #${updatedTemplate.mintedCount}`,
+      },
+    });
 
     return NextResponse.json({
       success: true,
       nft: {
-        id: result.nft.id,
-        mintNumber: result.nft.mintNumber,
-        templateName: result.template.name,
-        imageEmoji: result.template.imageEmoji,
-        rarity: result.template.rarity,
+        id: mintedNft.id,
+        mintNumber: mintedNft.mintNumber,
+        templateName: updatedTemplate.name,
+        imageEmoji: updatedTemplate.imageEmoji,
+        rarity: updatedTemplate.rarity,
       },
-      newMcBalance: result.newMcBalance,
+      newMcBalance: updatedMintBalance.mcBalance,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "서버 오류";

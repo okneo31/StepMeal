@@ -43,73 +43,70 @@ export async function POST(req: Request) {
     const reviewBonus = QUEST_REVIEW_SC;
     const totalBonus = arrivalBonus + reviewBonus;
 
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Create review
-      const review = await tx.questReview.create({
-        data: {
-          questId,
-          userId: session.user.id,
-          photoUrl: photoUrl || null,
-          comment: comment?.trim() || null,
-          rating: rating || null,
-          bonusSc: reviewBonus,
-        },
-      });
+    // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
+    // 1. Create review
+    const review = await prisma.questReview.create({
+      data: {
+        questId,
+        userId: session.user.id,
+        photoUrl: photoUrl || null,
+        comment: comment?.trim() || null,
+        rating: rating || null,
+        bonusSc: reviewBonus,
+      },
+    });
 
-      // 2. Update quest to completed
-      await tx.quest.update({
-        where: { id: questId },
-        data: {
-          status: "COMPLETED",
-          bonusSc: totalBonus,
-          completedAt: new Date(),
-        },
-      });
+    // 2. Update quest to completed
+    await prisma.quest.update({
+      where: { id: questId },
+      data: {
+        status: "COMPLETED",
+        bonusSc: totalBonus,
+        completedAt: new Date(),
+      },
+    });
 
-      // 3. Credit review SC bonus
-      const balance = await tx.coinBalance.update({
-        where: { userId: session.user.id },
-        data: {
-          scBalance: { increment: reviewBonus },
-          scLifetime: { increment: reviewBonus },
-        },
-      });
+    // 3. Credit review SC bonus
+    const balance = await prisma.coinBalance.update({
+      where: { userId: session.user.id },
+      data: {
+        scBalance: { increment: reviewBonus },
+        scLifetime: { increment: reviewBonus },
+      },
+    });
 
-      await tx.coinTransaction.create({
-        data: {
-          userId: session.user.id,
-          coinType: "SC",
-          amount: reviewBonus,
-          balanceAfter: balance.scBalance,
-          sourceType: "MOVEMENT",
-          description: `퀘스트 리뷰 보너스: ${quest.destName} (+${reviewBonus} SC)`,
-        },
-      });
+    await prisma.coinTransaction.create({
+      data: {
+        userId: session.user.id,
+        coinType: "SC",
+        amount: reviewBonus,
+        balanceAfter: balance.scBalance,
+        sourceType: "MOVEMENT",
+        description: `퀘스트 리뷰 보너스: ${quest.destName} (+${reviewBonus} SC)`,
+      },
+    });
 
-      // 4. Update daily earning
-      const today = new Date();
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      await tx.dailyEarning.upsert({
-        where: {
-          userId_earnDate: { userId: session.user.id, earnDate: todayStart },
-        },
-        create: {
-          userId: session.user.id,
-          earnDate: todayStart,
-          scMovement: reviewBonus,
-        },
-        update: {
-          scMovement: { increment: reviewBonus },
-        },
-      });
+    // 4. Update daily earning
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    await prisma.dailyEarning.upsert({
+      where: {
+        userId_earnDate: { userId: session.user.id, earnDate: todayStart },
+      },
+      create: {
+        userId: session.user.id,
+        earnDate: todayStart,
+        scMovement: reviewBonus,
+      },
+      update: {
+        scMovement: { increment: reviewBonus },
+      },
+    });
 
-      return { review, balance };
-    }, { timeout: 15000 });
-
-    updateProgress(session.user.id, { type: "QUEST_COMPLETE" }).catch(() => {});
+    await updateProgress(session.user.id, { type: "QUEST_COMPLETE" }).catch(() => {});
 
     return NextResponse.json({
-      reviewId: result.review.id,
+      reviewId: review.id,
       arrivalBonus,
       reviewBonus,
       totalBonus,
