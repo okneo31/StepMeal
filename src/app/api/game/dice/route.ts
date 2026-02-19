@@ -74,7 +74,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "1~6 사이의 숫자를 선택하세요." }, { status: 400 });
     }
 
-    // Pre-check outside transaction to reduce transaction duration
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -99,102 +98,83 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `${coinType}가 부족합니다.` }, { status: 400 });
     }
 
-    // Roll dice before transaction
     const roll = Math.floor(Math.random() * 6) + 1;
     const isWin = checkWin(roll, betType, betValue);
     const multiplier = getDiceMultiplier(betType);
     const payout = isWin ? betAmount * multiplier : 0;
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Re-check balance inside transaction for safety
-      const balance = await tx.coinBalance.findUnique({
+    // Sequential atomic operations (no interactive transaction)
+    const deductData = coinType === "SC"
+      ? { scBalance: { decrement: betAmount } }
+      : { mcBalance: { decrement: betAmount } };
+
+    let updatedBalance = await prisma.coinBalance.update({
+      where: { userId: session.user.id },
+      data: deductData,
+    });
+
+    await prisma.coinTransaction.create({
+      data: {
+        userId: session.user.id,
+        coinType,
+        amount: -betAmount,
+        balanceAfter: coinType === "SC" ? updatedBalance.scBalance : updatedBalance.mcBalance,
+        sourceType: "GAME",
+        description: "주사위 베팅",
+      },
+    });
+
+    if (isWin) {
+      const creditData = coinType === "SC"
+        ? { scBalance: { increment: payout }, scLifetime: { increment: payout } }
+        : { mcBalance: { increment: payout }, mcLifetime: { increment: payout } };
+
+      updatedBalance = await prisma.coinBalance.update({
         where: { userId: session.user.id },
+        data: creditData,
       });
-      const bal = coinType === "SC" ? balance?.scBalance || 0 : balance?.mcBalance || 0;
-      if (bal < betAmount) {
-        throw new Error(`${coinType}가 부족합니다.`);
-      }
-
-      // Deduct bet
-      const deductData = coinType === "SC"
-        ? { scBalance: { decrement: betAmount } }
-        : { mcBalance: { decrement: betAmount } };
-
-      let updatedBalance = await tx.coinBalance.update({
-        where: { userId: session.user.id },
-        data: deductData,
-      });
-
-      await tx.coinTransaction.create({
+      await prisma.coinTransaction.create({
         data: {
           userId: session.user.id,
           coinType,
-          amount: -betAmount,
+          amount: payout,
           balanceAfter: coinType === "SC" ? updatedBalance.scBalance : updatedBalance.mcBalance,
           sourceType: "GAME",
-          description: "주사위 베팅",
+          description: `주사위 당첨 (${betAmount} × ${multiplier})`,
         },
       });
+    }
 
-      // Credit winnings
-      if (isWin) {
-        const creditData = coinType === "SC"
-          ? { scBalance: { increment: payout }, scLifetime: { increment: payout } }
-          : { mcBalance: { increment: payout }, mcLifetime: { increment: payout } };
-
-        updatedBalance = await tx.coinBalance.update({
-          where: { userId: session.user.id },
-          data: creditData,
-        });
-        await tx.coinTransaction.create({
-          data: {
-            userId: session.user.id,
-            coinType,
-            amount: payout,
-            balanceAfter: coinType === "SC" ? updatedBalance.scBalance : updatedBalance.mcBalance,
-            sourceType: "GAME",
-            description: `주사위 당첨 (${betAmount} × ${multiplier})`,
-          },
-        });
-      }
-
-      // Record game play
-      const betChoiceStr = betType === "exact" ? `exact:${betValue}` : betType;
-      await tx.gamePlay.create({
-        data: {
-          userId: session.user.id,
-          gameType: "DICE",
-          coinType,
-          betAmount,
-          betChoice: betChoiceStr,
-          result: String(roll),
-          multiplier: isWin ? multiplier : 0,
-          payout,
-          status: isWin ? "WON" : "LOST",
-          resolvedAt: new Date(),
-        },
-      });
-
-      return {
-        roll,
-        betType,
-        betValue,
-        isWin,
+    const betChoiceStr = betType === "exact" ? `exact:${betValue}` : betType;
+    await prisma.gamePlay.create({
+      data: {
+        userId: session.user.id,
+        gameType: "DICE",
+        coinType,
+        betAmount,
+        betChoice: betChoiceStr,
+        result: String(roll),
         multiplier: isWin ? multiplier : 0,
         payout,
-        scBalance: updatedBalance.scBalance,
-        mcBalance: updatedBalance.mcBalance,
-        remainingPlays: DAILY_LIMIT - prePlays - 1,
-      };
-    }, { timeout: 15000 });
+        status: isWin ? "WON" : "LOST",
+        resolvedAt: new Date(),
+      },
+    });
 
     updateProgress(session.user.id, { type: "GAME_PLAY" }).catch(() => {});
-    return NextResponse.json(result);
+    return NextResponse.json({
+      roll,
+      betType,
+      betValue,
+      isWin,
+      multiplier: isWin ? multiplier : 0,
+      payout,
+      scBalance: updatedBalance.scBalance,
+      mcBalance: updatedBalance.mcBalance,
+      remainingPlays: DAILY_LIMIT - prePlays - 1,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "서버 오류";
-    if (message.startsWith("LIMIT:")) {
-      return NextResponse.json({ error: message.slice(6) }, { status: 400 });
-    }
     if (message.endsWith("부족합니다.")) {
       return NextResponse.json({ error: message }, { status: 400 });
     }

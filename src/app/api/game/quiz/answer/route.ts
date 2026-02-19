@@ -16,7 +16,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
     }
 
-    // Validate selectedIndex is a non-negative integer
     if (typeof selectedIndex !== 'number' || selectedIndex < 0 || !Number.isInteger(selectedIndex)) {
       return NextResponse.json({ error: "잘못된 답변 인덱스입니다." }, { status: 400 });
     }
@@ -29,7 +28,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "문제를 찾을 수 없습니다." }, { status: 404 });
     }
 
-    // Validate selectedIndex is within options bounds
     let options: string[];
     try {
       options = JSON.parse(question.options);
@@ -44,7 +42,6 @@ export async function POST(req: Request) {
     const isCorrect = selectedIndex === question.correctIndex;
     const mcEarned = isCorrect ? QUIZ_MC_REWARD : 0;
 
-    // Pre-check outside transaction
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -73,75 +70,65 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "이미 이 문제를 풀었습니다." }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Record attempt
-      await tx.quizAttempt.create({
+    // Sequential atomic operations (no interactive transaction)
+    await prisma.quizAttempt.create({
+      data: {
+        userId: session.user.id,
+        questionId,
+        selectedIndex,
+        isCorrect,
+        mcEarned,
+      },
+    });
+
+    let balance = await prisma.coinBalance.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    if (isCorrect && balance) {
+      balance = await prisma.coinBalance.update({
+        where: { userId: session.user.id },
         data: {
-          userId: session.user.id,
-          questionId,
-          selectedIndex,
-          isCorrect,
-          mcEarned,
+          mcBalance: { increment: mcEarned },
+          mcLifetime: { increment: mcEarned },
         },
       });
 
-      // 2. Award MC if correct
-      let balance = await tx.coinBalance.findUnique({
-        where: { userId: session.user.id },
+      await prisma.coinTransaction.create({
+        data: {
+          userId: session.user.id,
+          coinType: "MC",
+          amount: mcEarned,
+          balanceAfter: balance.mcBalance,
+          sourceType: "GAME",
+          description: `데일리 퀴즈 정답 보상`,
+        },
       });
 
-      if (isCorrect && balance) {
-        balance = await tx.coinBalance.update({
-          where: { userId: session.user.id },
-          data: {
-            mcBalance: { increment: mcEarned },
-            mcLifetime: { increment: mcEarned },
-          },
-        });
-
-        await tx.coinTransaction.create({
-          data: {
-            userId: session.user.id,
-            coinType: "MC",
-            amount: mcEarned,
-            balanceAfter: balance.mcBalance,
-            sourceType: "GAME",
-            description: `데일리 퀴즈 정답 보상`,
-          },
-        });
-
-        // Update daily earning
-        await tx.dailyEarning.upsert({
-          where: {
-            userId_earnDate: { userId: session.user.id, earnDate: today },
-          },
-          create: {
-            userId: session.user.id,
-            earnDate: today,
-            mcGame: mcEarned,
-          },
-          update: {
-            mcGame: { increment: mcEarned },
-          },
-        });
-      }
-
-      return { balance, todayAttempts: preAttempts };
-    }, { timeout: 15000 });
+      await prisma.dailyEarning.upsert({
+        where: {
+          userId_earnDate: { userId: session.user.id, earnDate: today },
+        },
+        create: {
+          userId: session.user.id,
+          earnDate: today,
+          mcGame: mcEarned,
+        },
+        update: {
+          mcGame: { increment: mcEarned },
+        },
+      });
+    }
 
     return NextResponse.json({
       isCorrect,
       correctIndex: question.correctIndex,
       explanation: question.explanation,
       mcEarned,
-      remainingAttempts: QUIZ_DAILY_LIMIT - result.todayAttempts - 1,
-      newMcBalance: result.balance?.mcBalance || 0,
+      remainingAttempts: QUIZ_DAILY_LIMIT - preAttempts - 1,
+      newMcBalance: balance?.mcBalance || 0,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "서버 오류";
-    if (message.startsWith("LIMIT:")) {
-      return NextResponse.json({ error: message.slice(6) }, { status: 400 });
-    }
     console.error("Quiz answer error:", error);
     return NextResponse.json({ error: "서버 오류" }, { status: 500 });
   }

@@ -72,39 +72,38 @@ export async function GET() {
           payout = bet.betAmount * NUMBER_PAYOUT;
         }
 
-        await prisma.$transaction(async (tx) => {
-          await tx.ringBet.update({
-            where: { id: bet.id },
-            data: {
-              resultNum: rNum,
-              resultSlot: rSlot,
-              payout,
-              status: won ? "WON" : "LOST",
-            },
+        // Sequential atomic operations
+        await prisma.ringBet.update({
+          where: { id: bet.id },
+          data: {
+            resultNum: rNum,
+            resultSlot: rSlot,
+            payout,
+            status: won ? "WON" : "LOST",
+          },
+        });
+
+        if (won && payout > 0) {
+          const updateData = bet.coinType === "SC"
+            ? { scBalance: { increment: payout }, scLifetime: { increment: payout } }
+            : { mcBalance: { increment: payout }, mcLifetime: { increment: payout } };
+
+          const updBalance = await prisma.coinBalance.update({
+            where: { userId: session.user.id },
+            data: updateData,
           });
 
-          if (won && payout > 0) {
-            const updateData = bet.coinType === "SC"
-              ? { scBalance: { increment: payout }, scLifetime: { increment: payout } }
-              : { mcBalance: { increment: payout }, mcLifetime: { increment: payout } };
-
-            const balance = await tx.coinBalance.update({
-              where: { userId: session.user.id },
-              data: updateData,
-            });
-
-            await tx.coinTransaction.create({
-              data: {
-                userId: session.user.id,
-                coinType: bet.coinType,
-                amount: payout,
-                balanceAfter: bet.coinType === "SC" ? balance.scBalance : balance.mcBalance,
-                sourceType: "GAME",
-                description: `1분링 당첨 R${bet.round} ${bet.betType === "SLOT" ? `${bet.betValue}배` : `#${bet.betValue}`} (x${bet.betType === "SLOT" ? SLOT_PAYOUT[rSlot] : NUMBER_PAYOUT})`,
-              },
-            });
-          }
-        }, { timeout: 15000 });
+          await prisma.coinTransaction.create({
+            data: {
+              userId: session.user.id,
+              coinType: bet.coinType,
+              amount: payout,
+              balanceAfter: bet.coinType === "SC" ? updBalance.scBalance : updBalance.mcBalance,
+              sourceType: "GAME",
+              description: `1분링 당첨 R${bet.round} ${bet.betType === "SLOT" ? `${bet.betValue}배` : `#${bet.betValue}`} (x${bet.betType === "SLOT" ? SLOT_PAYOUT[rSlot] : NUMBER_PAYOUT})`,
+            },
+          });
+        }
 
         settledBets.push({
           betId: bet.id,

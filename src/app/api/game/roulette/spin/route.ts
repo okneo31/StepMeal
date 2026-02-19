@@ -11,7 +11,6 @@ export async function POST() {
   }
 
   try {
-    // Pre-check outside transaction
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -34,107 +33,87 @@ export async function POST() {
       return NextResponse.json({ error: "SC가 부족합니다." }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Re-check balance inside transaction
-      const balance = await tx.coinBalance.findUnique({
+    // Sequential atomic operations (no interactive transaction)
+    const updatedBalance = await prisma.coinBalance.update({
+      where: { userId: session.user.id },
+      data: { scBalance: { decrement: ROULETTE_COST_SC } },
+    });
+
+    await prisma.coinTransaction.create({
+      data: {
+        userId: session.user.id,
+        coinType: "SC",
+        amount: -ROULETTE_COST_SC,
+        balanceAfter: updatedBalance.scBalance,
+        sourceType: "GAME",
+        description: "럭키 룰렛 참여",
+      },
+    });
+
+    const { slotIndex, reward } = spinRoulette();
+
+    let finalBalance = updatedBalance;
+    if (reward.type === "MC" && reward.value > 0) {
+      finalBalance = await prisma.coinBalance.update({
         where: { userId: session.user.id },
+        data: {
+          mcBalance: { increment: reward.value },
+          mcLifetime: { increment: reward.value },
+        },
       });
-
-      if (!balance || balance.scBalance < ROULETTE_COST_SC) {
-        throw new Error("SC가 부족합니다.");
-      }
-
-      // Deduct SC
-      const updatedBalance = await tx.coinBalance.update({
+      await prisma.coinTransaction.create({
+        data: {
+          userId: session.user.id,
+          coinType: "MC",
+          amount: reward.value,
+          balanceAfter: finalBalance.mcBalance,
+          sourceType: "GAME",
+          description: `럭키 룰렛 보상: ${reward.label}`,
+        },
+      });
+    } else if (reward.type === "SC" && reward.value > 0) {
+      finalBalance = await prisma.coinBalance.update({
         where: { userId: session.user.id },
-        data: { scBalance: { decrement: ROULETTE_COST_SC } },
+        data: {
+          scBalance: { increment: reward.value },
+          scLifetime: { increment: reward.value },
+        },
       });
-
-      // 3. Record SC spend transaction
-      await tx.coinTransaction.create({
+      await prisma.coinTransaction.create({
         data: {
           userId: session.user.id,
           coinType: "SC",
-          amount: -ROULETTE_COST_SC,
-          balanceAfter: updatedBalance.scBalance,
+          amount: reward.value,
+          balanceAfter: finalBalance.scBalance,
           sourceType: "GAME",
-          description: "럭키 룰렛 참여",
+          description: `럭키 룰렛 보상: ${reward.label}`,
         },
       });
-
-      // 4. Spin and determine reward
-      const { slotIndex, reward } = spinRoulette();
-
-      // 5. Apply reward
-      let finalBalance = updatedBalance;
-      if (reward.type === "MC" && reward.value > 0) {
-        finalBalance = await tx.coinBalance.update({
-          where: { userId: session.user.id },
-          data: {
-            mcBalance: { increment: reward.value },
-            mcLifetime: { increment: reward.value },
-          },
-        });
-        await tx.coinTransaction.create({
-          data: {
-            userId: session.user.id,
-            coinType: "MC",
-            amount: reward.value,
-            balanceAfter: finalBalance.mcBalance,
-            sourceType: "GAME",
-            description: `럭키 룰렛 보상: ${reward.label}`,
-          },
-        });
-      } else if (reward.type === "SC" && reward.value > 0) {
-        finalBalance = await tx.coinBalance.update({
-          where: { userId: session.user.id },
-          data: {
-            scBalance: { increment: reward.value },
-            scLifetime: { increment: reward.value },
-          },
-        });
-        await tx.coinTransaction.create({
-          data: {
-            userId: session.user.id,
-            coinType: "SC",
-            amount: reward.value,
-            balanceAfter: finalBalance.scBalance,
-            sourceType: "GAME",
-            description: `럭키 룰렛 보상: ${reward.label}`,
-          },
-        });
-      } else if (reward.type === "SHIELD") {
-        await tx.stride.update({
-          where: { userId: session.user.id },
-          data: { shieldCount: { increment: 1 } },
-        });
-      }
-
-      // 6. Record roulette play
-      await tx.roulettePlay.create({
-        data: {
-          userId: session.user.id,
-          costSc: ROULETTE_COST_SC,
-          rewardType: reward.type,
-          rewardValue: reward.value,
-        },
+    } else if (reward.type === "SHIELD") {
+      await prisma.stride.update({
+        where: { userId: session.user.id },
+        data: { shieldCount: { increment: 1 } },
       });
+    }
 
-      return {
-        slotIndex,
-        reward,
-        newScBalance: finalBalance.scBalance,
-        newMcBalance: finalBalance.mcBalance,
-        remainingPlays: ROULETTE_DAILY_LIMIT - prePlays - 1,
-      };
-    }, { timeout: 15000 });
+    await prisma.roulettePlay.create({
+      data: {
+        userId: session.user.id,
+        costSc: ROULETTE_COST_SC,
+        rewardType: reward.type,
+        rewardValue: reward.value,
+      },
+    });
 
-    return NextResponse.json(result);
+    return NextResponse.json({
+      slotIndex,
+      reward,
+      newScBalance: finalBalance.scBalance,
+      newMcBalance: finalBalance.mcBalance,
+      remainingPlays: ROULETTE_DAILY_LIMIT - prePlays - 1,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "서버 오류";
-    if (message.startsWith("LIMIT:")) {
-      return NextResponse.json({ error: message.slice(6) }, { status: 400 });
-    }
     const status = message === "SC가 부족합니다." ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }

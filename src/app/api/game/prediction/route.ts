@@ -21,7 +21,6 @@ export async function GET() {
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
 
-  // Auto-lose old predictions
   await prisma.gamePlay.updateMany({
     where: {
       userId: session.user.id,
@@ -55,7 +54,6 @@ export async function GET() {
     where: { userId: session.user.id },
   });
 
-  // Check if already used today (any status)
   const todayPlayed = !activePrediction
     ? await prisma.gamePlay.findFirst({
         where: {
@@ -118,7 +116,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "잘못된 베팅 금액입니다." }, { status: 400 });
     }
 
-    // Pre-check outside transaction
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -142,57 +139,46 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "SC가 부족합니다." }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const balance = await tx.coinBalance.findUnique({ where: { userId: session.user.id } });
-      if (!balance || balance.scBalance < betAmount) {
-        throw new Error("SC가 부족합니다.");
-      }
+    // Sequential atomic operations
+    const updatedBalance = await prisma.coinBalance.update({
+      where: { userId: session.user.id },
+      data: { scBalance: { decrement: betAmount } },
+    });
 
-      const updatedBalance = await tx.coinBalance.update({
-        where: { userId: session.user.id },
-        data: { scBalance: { decrement: betAmount } },
-      });
+    await prisma.coinTransaction.create({
+      data: {
+        userId: session.user.id,
+        coinType: "SC",
+        amount: -betAmount,
+        balanceAfter: updatedBalance.scBalance,
+        sourceType: "GAME",
+        description: `걸음수 예측 베팅 (${targetKm}km)`,
+      },
+    });
 
-      await tx.coinTransaction.create({
-        data: {
-          userId: session.user.id,
-          coinType: "SC",
-          amount: -betAmount,
-          balanceAfter: updatedBalance.scBalance,
-          sourceType: "GAME",
-          description: `걸음수 예측 베팅 (${targetKm}km)`,
-        },
-      });
+    const play = await prisma.gamePlay.create({
+      data: {
+        userId: session.user.id,
+        gameType: "PREDICTION",
+        coinType: "SC",
+        betAmount,
+        betChoice: String(targetKm),
+        multiplier: target.multiplier,
+        status: "PENDING",
+      },
+    });
 
-      const play = await tx.gamePlay.create({
-        data: {
-          userId: session.user.id,
-          gameType: "PREDICTION",
-          coinType: "SC",
-          betAmount,
-          betChoice: String(targetKm),
-          multiplier: target.multiplier,
-          status: "PENDING",
-        },
-      });
-
-      return {
-        prediction: {
-          id: play.id,
-          targetKm,
-          multiplier: target.multiplier,
-          betAmount,
-        },
-        scBalance: updatedBalance.scBalance,
-      };
-    }, { timeout: 15000 });
-
-    return NextResponse.json(result);
+    return NextResponse.json({
+      prediction: {
+        id: play.id,
+        targetKm,
+        multiplier: target.multiplier,
+        betAmount,
+      },
+      scBalance: updatedBalance.scBalance,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "서버 오류";
-    if (message.startsWith("LIMIT:")) {
-      return NextResponse.json({ error: message.slice(6) }, { status: 400 });
-    }
     const status = message === "SC가 부족합니다." ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }
@@ -207,7 +193,6 @@ export async function PATCH(req: Request) {
   try {
     const { predictionId } = await req.json();
 
-    // Pre-check outside transaction
     const prediction = await prisma.gamePlay.findFirst({
       where: {
         id: predictionId,
@@ -245,45 +230,42 @@ export async function PATCH(req: Request) {
 
     const payout = Math.floor(prediction.betAmount * (prediction.multiplier || 1));
 
-    const result = await prisma.$transaction(async (tx) => {
-      const updatedBalance = await tx.coinBalance.update({
-        where: { userId: session.user.id },
-        data: {
-          scBalance: { increment: payout },
-          scLifetime: { increment: payout },
-        },
-      });
+    // Sequential atomic operations
+    const updatedBalance = await prisma.coinBalance.update({
+      where: { userId: session.user.id },
+      data: {
+        scBalance: { increment: payout },
+        scLifetime: { increment: payout },
+      },
+    });
 
-      await tx.coinTransaction.create({
-        data: {
-          userId: session.user.id,
-          coinType: "SC",
-          amount: payout,
-          balanceAfter: updatedBalance.scBalance,
-          sourceType: "GAME",
-          description: `걸음수 예측 달성! (${prediction.betAmount} × ${prediction.multiplier})`,
-        },
-      });
+    await prisma.coinTransaction.create({
+      data: {
+        userId: session.user.id,
+        coinType: "SC",
+        amount: payout,
+        balanceAfter: updatedBalance.scBalance,
+        sourceType: "GAME",
+        description: `걸음수 예측 달성! (${prediction.betAmount} × ${prediction.multiplier})`,
+      },
+    });
 
-      await tx.gamePlay.update({
-        where: { id: prediction.id },
-        data: {
-          status: "WON",
-          result: String(todayDistanceM),
-          payout,
-          resolvedAt: new Date(),
-        },
-      });
-
-      return {
-        isWin: true,
+    await prisma.gamePlay.update({
+      where: { id: prediction.id },
+      data: {
+        status: "WON",
+        result: String(todayDistanceM),
         payout,
-        todayKm: todayKm.toFixed(1),
-        scBalance: updatedBalance.scBalance,
-      };
-    }, { timeout: 15000 });
+        resolvedAt: new Date(),
+      },
+    });
 
-    return NextResponse.json(result);
+    return NextResponse.json({
+      isWin: true,
+      payout,
+      todayKm: todayKm.toFixed(1),
+      scBalance: updatedBalance.scBalance,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "서버 오류";
     return NextResponse.json({ error: message }, { status: 400 });

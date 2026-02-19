@@ -74,45 +74,39 @@ export async function POST(req: Request) {
     // Calculate potential payout
     const multiplier = betType === "SLOT" ? SLOT_PAYOUT[betValue] : NUMBER_PAYOUT;
 
-    // Deduct balance and create bet in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Re-check balance inside transaction
-      // Deduct bet amount
-      const updateData = coinType === "SC"
-        ? { scBalance: { decrement: betAmount } }
-        : { mcBalance: { decrement: betAmount } };
+    // Sequential atomic operations
+    const updateData = coinType === "SC"
+      ? { scBalance: { decrement: betAmount } }
+      : { mcBalance: { decrement: betAmount } };
 
-      const updatedBalance = await tx.coinBalance.update({
-        where: { userId: session.user.id },
-        data: updateData,
-      });
+    const updatedBalance = await prisma.coinBalance.update({
+      where: { userId: session.user.id },
+      data: updateData,
+    });
 
-      // Record transaction
-      await tx.coinTransaction.create({
-        data: {
-          userId: session.user.id,
-          coinType,
-          amount: -betAmount,
-          balanceAfter: coinType === "SC" ? updatedBalance.scBalance : updatedBalance.mcBalance,
-          sourceType: "GAME",
-          description: `1분링 베팅 R${nextRound} (${betType === "SLOT" ? `${betValue}배` : `#${betValue}`})`,
-        },
-      });
+    await prisma.coinTransaction.create({
+      data: {
+        userId: session.user.id,
+        coinType,
+        amount: -betAmount,
+        balanceAfter: coinType === "SC" ? updatedBalance.scBalance : updatedBalance.mcBalance,
+        sourceType: "GAME",
+        description: `1분링 베팅 R${nextRound} (${betType === "SLOT" ? `${betValue}배` : `#${betValue}`})`,
+      },
+    });
 
-      // Create bet record
-      const bet = await tx.ringBet.create({
-        data: {
-          userId: session.user.id,
-          round: nextRound,
-          coinType,
-          betAmount,
-          betType,
-          betValue,
-        },
-      });
+    const bet = await prisma.ringBet.create({
+      data: {
+        userId: session.user.id,
+        round: nextRound,
+        coinType,
+        betAmount,
+        betType,
+        betValue,
+      },
+    });
 
-      return { bet, updatedBalance };
-    }, { timeout: 15000 });
+    const result = { bet, updatedBalance };
 
     return NextResponse.json({
       betId: result.bet.id,
