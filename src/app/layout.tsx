@@ -4,9 +4,22 @@ import ThemeProvider from "@/components/providers/ThemeProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "StepMeal",
-  description: "움직여서 벌고, 건강하게 먹고, 게임으로 즐기자",
+  title: "StepMeal - 움직여서 벌고, 건강하게 먹자",
+  description: "걸어서 SC 코인을 모으고, QR 스캔으로 MC 코인을 획득하세요. 미니게임, NFT, AI 리포트까지!",
   manifest: "/manifest.json",
+  metadataBase: new URL("https://www.stepmeal.top"),
+  openGraph: {
+    title: "StepMeal - 움직여서 벌고, 건강하게 먹자",
+    description: "걸어서 SC 코인을 모으고, QR 스캔으로 MC 코인을 획득하세요. 미니게임, NFT, AI 리포트까지!",
+    siteName: "StepMeal",
+    locale: "ko_KR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "StepMeal - 움직여서 벌고, 건강하게 먹자",
+    description: "걸어서 SC 코인을 모으고, QR 스캔으로 MC 코인을 획득하세요. 미니게임, NFT, AI 리포트까지!",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
