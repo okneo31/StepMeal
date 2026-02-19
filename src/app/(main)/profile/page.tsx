@@ -275,7 +275,7 @@ export default function ProfilePage() {
         <Button
           variant="ghost"
           fullWidth
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={() => signOut({ redirect: false }).then(() => { window.location.href = "/login"; })}
           className="text-red-400 hover:text-red-300"
         >
           로그아웃
