@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { calculateMovementSc, getMultiModalBonus, getMultiClassCount, getTimeSlot, estimateCalories } from "@/lib/sc-calculator";
 import { calculateStrideUpdate } from "@/lib/stride-engine";
 import { TRANSPORT_CONFIG, STRIDE_TABLE, MIN_DAILY_DISTANCE } from "@/lib/constants";
+import { getKSTToday } from "@/lib/kst";
 import { MILESTONES, DURATION_MILESTONES } from "@/lib/missions";
 import { updateProgress } from "@/lib/progress";
 import type { MovementSegment, WeatherType, TransportType } from "@/types";
@@ -156,7 +157,7 @@ export async function POST(req: Request) {
     });
 
     // 4. Update daily earning
-    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayDate = getKSTToday();
     await prisma.dailyEarning.upsert({
       where: {
         userId_earnDate: { userId: session.user.id, earnDate: todayDate },

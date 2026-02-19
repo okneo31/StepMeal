@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
 
 const TARGETS = [
   { km: 1, multiplier: 1.5 },
@@ -16,10 +17,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
+  const today = getKSTToday();
+  const tomorrow = getKSTTomorrow();
 
   await prisma.gamePlay.updateMany({
     where: {
@@ -116,10 +115,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "잘못된 베팅 금액입니다." }, { status: 400 });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
+    const today = getKSTToday();
+    const tomorrow = getKSTTomorrow();
 
     const [existing, preBalance] = await Promise.all([
       prisma.gamePlay.findFirst({
@@ -207,10 +204,8 @@ export async function PATCH(req: Request) {
     }
 
     const targetKm = parseFloat(prediction.betChoice);
-    const pToday = new Date();
-    pToday.setHours(0, 0, 0, 0);
-    const pTomorrow = new Date(pToday);
-    pTomorrow.setDate(pToday.getDate() + 1);
+    const pToday = getKSTToday();
+    const pTomorrow = getKSTTomorrow();
 
     const movements = await prisma.movement.findMany({
       where: {

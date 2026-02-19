@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateProgress } from "@/lib/progress";
+import { getKSTToday } from "@/lib/kst";
 
 const QUEST_REVIEW_SC = 20; // Fixed SC reward for writing a review
 
@@ -87,8 +88,7 @@ export async function POST(req: Request) {
     });
 
     // 4. Update daily earning
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayStart = getKSTToday();
     await prisma.dailyEarning.upsert({
       where: {
         userId_earnDate: { userId: session.user.id, earnDate: todayStart },

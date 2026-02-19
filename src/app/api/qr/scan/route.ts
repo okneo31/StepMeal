@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { QR_SCAN_DAILY_LIMIT } from "@/lib/constants";
 import { getBoosterMultiplier, BOOSTER_DURATION_HOURS } from "@/lib/booster-config";
+import { getKSTToday } from "@/lib/kst";
 
 const PARTNER_API_URL = process.env.PARTNER_API_URL || "https://qr.stepmeal.top/api/verify.php";
 
@@ -74,8 +75,7 @@ export async function POST(req: Request) {
 
     // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
     // Check daily limit
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getKSTToday();
     const todayScans = await prisma.coinTransaction.count({
       where: {
         userId: session.user.id,
@@ -113,8 +113,7 @@ export async function POST(req: Request) {
     });
 
     // Update daily earning
-    const earnDate = new Date();
-    earnDate.setHours(0, 0, 0, 0);
+    const earnDate = getKSTToday();
     await prisma.dailyEarning.upsert({
       where: {
         userId_earnDate: { userId: session.user.id, earnDate },
@@ -214,8 +213,7 @@ async function localScan(code: string, userId: string) {
   }
 
   // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
-  const localToday = new Date();
-  localToday.setHours(0, 0, 0, 0);
+  const localToday = getKSTToday();
   const localTodayScans = await prisma.qrCode.count({
     where: { usedBy: userId, usedAt: { gte: localToday } },
   });
@@ -256,8 +254,7 @@ async function localScan(code: string, userId: string) {
     },
   });
 
-  const localEarnDate = new Date();
-  localEarnDate.setHours(0, 0, 0, 0);
+  const localEarnDate = getKSTToday();
   await prisma.dailyEarning.upsert({
     where: { userId_earnDate: { userId, earnDate: localEarnDate } },
     create: { userId, earnDate: localEarnDate, mcQr: qrCode.mcReward },

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { WEEKLY_TIERS, getMonday } from "@/lib/missions";
+import { WEEKLY_TIERS } from "@/lib/missions";
+import { getKSTMonday } from "@/lib/kst";
 
 // GET: this week's challenge
 export async function GET() {
@@ -10,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const weekStart = getMonday(new Date());
+  const weekStart = getKSTMonday();
 
   let challenge = await prisma.weeklyChallenge.findUnique({
     where: { userId_weekStart: { userId: session.user.id, weekStart } },
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
 
   try {
     const { tier } = await req.json();
-    const weekStart = getMonday(new Date());
+    const weekStart = getKSTMonday();
     const tierDef = WEEKLY_TIERS[tier as keyof typeof WEEKLY_TIERS];
     if (!tierDef) {
       return NextResponse.json({ error: "잘못된 티어입니다." }, { status: 400 });

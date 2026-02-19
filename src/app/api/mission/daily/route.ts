@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateDailyMissions, ALL_CLEAR_BASE_SC, STREAK_BONUS_SC } from "@/lib/missions";
 import { updateProgress } from "@/lib/progress";
+import { getKSTToday } from "@/lib/kst";
 
 // GET: today's missions (auto-generate if not exist)
 export async function GET() {
@@ -11,8 +12,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = getKSTToday();
 
   // Check existing
   let missions = await prisma.dailyMission.findMany({
@@ -90,8 +90,7 @@ export async function PATCH(req: Request) {
 
   try {
     const { missionId, claimAllClear } = await req.json();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getKSTToday();
 
     if (claimAllClear) {
       // Claim all-clear bonus

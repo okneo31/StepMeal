@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { spinRoulette } from "@/lib/roulette";
 import { ROULETTE_COST_SC, ROULETTE_DAILY_LIMIT } from "@/lib/constants";
+import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
 
 export async function POST() {
   const session = await auth();
@@ -11,10 +12,8 @@ export async function POST() {
   }
 
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const today = getKSTToday();
+    const tomorrow = getKSTTomorrow();
 
     const [preBalance, prePlays] = await Promise.all([
       prisma.coinBalance.findUnique({ where: { userId: session.user.id } }),

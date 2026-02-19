@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getStrideInfo, getDaysUntilNextStride } from "@/lib/stride-engine";
 import { ENHANCE_BONUS_PER_LEVEL, SET_BONUS } from "@/lib/constants";
-import { startOfWeek, subDays, format } from "date-fns";
+import { subDays, format } from "date-fns";
+import { getKSTToday, getKSTMonday } from "@/lib/kst";
 
 export async function GET() {
   const session = await auth();
@@ -15,8 +16,8 @@ export async function GET() {
 
   try {
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const todayStart = getKSTToday();
+    const weekStart = getKSTMonday();
     const thirtyDaysAgo = subDays(now, 30);
 
     // Single parallel query batch - uses ONE connection

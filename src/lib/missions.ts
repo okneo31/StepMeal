@@ -59,12 +59,14 @@ export const WEEKLY_TIERS = {
 };
 
 export function getMonday(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d;
+  // KST (UTC+9) aware Monday calculation
+  const KST_MS = 9 * 60 * 60 * 1000;
+  const DAY_MS = 86_400_000;
+  const ms = date.getTime() + KST_MS;
+  const kstDayMs = Math.floor(ms / DAY_MS) * DAY_MS;
+  const dow = new Date(kstDayMs).getUTCDay();
+  const diff = dow === 0 ? -6 : 1 - dow;
+  return new Date(kstDayMs + diff * DAY_MS - KST_MS);
 }
 
 // ─── Milestone Rewards ───

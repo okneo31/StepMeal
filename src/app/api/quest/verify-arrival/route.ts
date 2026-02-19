@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { haversineDistance } from "@/lib/geolocation";
+import { getKSTToday } from "@/lib/kst";
 
 const ARRIVAL_RADIUS_M = 50; // 50m radius for arrival verification
 const QUEST_ARRIVAL_SC = 50; // Fixed SC reward for arriving at destination
@@ -74,7 +75,7 @@ export async function POST(req: Request) {
     });
 
     // 4. Update daily earning
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const today = getKSTToday();
     await prisma.dailyEarning.upsert({
       where: {
         userId_earnDate: { userId: session.user.id, earnDate: today },

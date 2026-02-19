@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateProgress } from "@/lib/progress";
+import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
 
 const DAILY_LIMIT = 10;
 const BET_AMOUNTS = [10, 30, 50, 100];
@@ -28,10 +29,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
+  const today = getKSTToday();
+  const tomorrow = getKSTTomorrow();
 
   const [balance, todayPlays] = await Promise.all([
     prisma.coinBalance.findUnique({ where: { userId: session.user.id } }),
@@ -74,10 +73,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "1~6 사이의 숫자를 선택하세요." }, { status: 400 });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
+    const today = getKSTToday();
+    const tomorrow = getKSTTomorrow();
 
     const [preBalance, prePlays] = await Promise.all([
       prisma.coinBalance.findUnique({ where: { userId: session.user.id } }),

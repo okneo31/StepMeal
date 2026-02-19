@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ROULETTE_DAILY_LIMIT, ROULETTE_COST_SC } from "@/lib/constants";
+import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
 
 export async function GET() {
   const session = await auth();
@@ -9,10 +10,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const today = getKSTToday();
+  const tomorrow = getKSTTomorrow();
 
   const todayPlays = await prisma.roulettePlay.count({
     where: {

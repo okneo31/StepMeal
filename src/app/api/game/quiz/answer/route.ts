@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { QUIZ_MC_REWARD, QUIZ_DAILY_LIMIT } from "@/lib/constants";
+import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -42,10 +43,8 @@ export async function POST(req: Request) {
     const isCorrect = selectedIndex === question.correctIndex;
     const mcEarned = isCorrect ? QUIZ_MC_REWARD : 0;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const today = getKSTToday();
+    const tomorrow = getKSTTomorrow();
 
     const [preAttempts, preAlready] = await Promise.all([
       prisma.quizAttempt.count({

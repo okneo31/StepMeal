@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { ACHIEVEMENTS, getMonday, generateDailyMissions } from "@/lib/missions";
+import { ACHIEVEMENTS, generateDailyMissions } from "@/lib/missions";
+import { getKSTToday, getKSTMonday } from "@/lib/kst";
 
 type EventType =
   | { type: "MOVEMENT_COMPLETE"; distanceM: number; isMulti: boolean; walkDistanceM: number }
@@ -18,8 +19,7 @@ const EVENT_ACHIEVEMENT_MAP: Record<string, Set<string>> = {
 };
 
 export async function updateProgress(userId: string, event: EventType) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = getKSTToday();
 
   // ─── 1. Update Daily Missions ───
   try {
@@ -58,7 +58,7 @@ export async function updateProgress(userId: string, event: EventType) {
   // ─── 2. Update Weekly Challenge (MOVEMENT_COMPLETE only) ───
   if (event.type === "MOVEMENT_COMPLETE") {
     try {
-      const weekStart = getMonday(today);
+      const weekStart = getKSTMonday();
       await prisma.weeklyChallenge.upsert({
         where: { userId_weekStart: { userId, weekStart } },
         create: { userId, weekStart, totalDistanceM: event.distanceM, moveCount: 1 },
