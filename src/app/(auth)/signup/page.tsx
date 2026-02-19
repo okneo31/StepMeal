@@ -58,7 +58,7 @@ export default function SignupPage() {
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <img src="/logo.png" alt="StepMeal" className="w-32 h-32 mx-auto mb-2 object-contain" />
+        <img src="/logo.webp" alt="StepMeal" className="w-32 h-32 mx-auto mb-2 object-contain" />
         <p className="mt-1 text-[var(--color-text-muted)] text-sm">새 계정 만들기</p>
       </div>
 
