@@ -264,10 +264,26 @@ export default function ProfilePage() {
           </button>
           <button
             onClick={() => router.push("/profile/about")}
-            className={`w-full text-left py-3.5 px-4 text-sm text-[var(--color-text-secondary)] flex justify-between items-center hover:bg-[var(--color-surface-hover)] transition-colors ${isAdmin(session?.user?.email) ? "border-b border-[var(--color-border)]" : ""}`}
+            className="w-full text-left py-3.5 px-4 border-b border-[var(--color-border)] text-sm text-[var(--color-text-secondary)] flex justify-between items-center hover:bg-[var(--color-surface-hover)] transition-colors"
           >
             <span>앱 정보</span>
             <span className="text-[var(--color-text-muted)]">v1.0.0</span>
+          </button>
+          <button
+            onClick={() => router.push("/guide")}
+            className={`w-full text-left py-3.5 px-4 text-sm text-[var(--color-text-secondary)] flex justify-between items-center hover:bg-[var(--color-surface-hover)] transition-colors ${isAdmin(session?.user?.email) ? "border-b border-[var(--color-border)]" : ""}`}
+          >
+            <span className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M2 3H11V13H2V3Z" stroke="#3B82F6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M11 5H14V15H5V13" stroke="#3B82F6" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M4.5 6.5H8.5M4.5 9H7" stroke="#3B82F6" strokeWidth="1.2" strokeLinecap="round"/>
+              </svg>
+              사용 가이드
+            </span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M6 4L10 8L6 12" stroke="#64748B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </button>
           {isAdmin(session?.user?.email) && (
             <button

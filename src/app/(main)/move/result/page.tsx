@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
@@ -47,6 +47,7 @@ function MultiplierRow({ label, icon, value, color }: { label: string; icon: Rea
 
 function ResultContent() {
   const params = useSearchParams();
+  const router = useRouter();
   const movementId = params.get("mid");
   const sc = parseInt(params.get("sc") || "0");
   const dist = parseInt(params.get("dist") || "0");
@@ -63,6 +64,16 @@ function ResultContent() {
   const [result, setResult] = useState<MoveResult | null>(null);
   const [loading, setLoading] = useState(!!movementId);
 
+  // Prevent browser back — keep result page visible until user presses confirm
+  useEffect(() => {
+    const handlePopState = () => {
+      window.history.pushState(null, "", window.location.href);
+    };
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   useEffect(() => {
     if (!movementId) return;
 
@@ -76,6 +87,10 @@ function ResultContent() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [movementId]);
+
+  const handleConfirm = () => {
+    router.replace("/home");
+  };
 
   const breakdown = result?.sc;
   const boosterMult = result?.boosterMult;
@@ -227,11 +242,9 @@ function ResultContent() {
               이동 기록
             </Button>
           </Link>
-          <Link href="/home" className="flex-[2]">
-            <Button fullWidth>
-              홈으로
-            </Button>
-          </Link>
+          <Button fullWidth className="flex-[2]" onClick={handleConfirm}>
+            확인
+          </Button>
         </div>
       </div>
     </div>

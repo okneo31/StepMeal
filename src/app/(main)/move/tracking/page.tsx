@@ -36,14 +36,16 @@ export default function TrackingPage() {
   } = useMovementStore();
 
   const { position, error, startWatching, stopWatching } = useGeolocation();
+  const completedRef = useRef(false);
 
   // Keep ref in sync with store
   useEffect(() => {
     totalDistanceRef.current = totalDistance;
   }, [totalDistance]);
 
-  // Redirect if not tracking
+  // Redirect if not tracking (skip if we just completed → navigating to result)
   useEffect(() => {
+    if (completedRef.current) return;
     if (!isTracking || !movementId) {
       router.replace("/move");
     }
@@ -118,9 +120,10 @@ export default function TrackingPage() {
       const data = await res.json();
 
       if (res.ok) {
-        reset();
+        completedRef.current = true;
         const msParam = data.milestones ? `&ms=${encodeURIComponent(JSON.stringify(data.milestones))}` : "";
         router.push(`/move/result?mid=${movementId}&sc=${data.sc.totalSc}&dist=${data.totalDistance}&dur=${data.totalDuration}&cal=${data.calories}${msParam}`);
+        reset();
       } else {
         alert(data.error || "이동 완료 처리 중 오류가 발생했습니다.");
       }
