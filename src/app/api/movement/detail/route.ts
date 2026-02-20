@@ -46,7 +46,7 @@ export async function GET(req: Request) {
         timeMult: movement.timeMult,
         weatherMult: movement.weatherMult,
         multiMult: movement.multiMult,
-        nftMult: 1, // Not stored separately, but included in totalSc
+        nftMult: movement.nftMult,
         bonusSc: movement.bonusSc,
         totalSc: movement.totalSc,
       },

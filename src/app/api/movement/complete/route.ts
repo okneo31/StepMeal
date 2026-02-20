@@ -127,6 +127,7 @@ export async function POST(req: Request) {
         timeMult: scBreakdown.timeMult,
         weatherMult: scBreakdown.weatherMult,
         multiMult: scBreakdown.multiMult,
+        nftMult: scBreakdown.nftMult,
         bonusSc: scBreakdown.bonusSc,
         totalSc: scBreakdown.totalSc,
         completedAt: now,
