@@ -6,7 +6,9 @@ export const alt = "StepMeal - 움직여서 벌고, 건강하게 먹자";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OgImage() {
+export default async function OgImage() {
+  const logoUrl = "https://www.stepmeal.top/logo.svg";
+
   return new ImageResponse(
     (
       <div
@@ -34,31 +36,15 @@ export default function OgImage() {
           }}
         />
 
-        {/* Footprint + Bowl SVG logo */}
-        <svg width="200" height="220" viewBox="0 0 200 220" style={{ marginBottom: "20px" }}>
-          {/* Toes */}
-          <ellipse cx="62" cy="22" rx="16" ry="20" fill="#6ABF4B" />
-          <ellipse cx="95" cy="10" rx="14" ry="18" fill="#6ABF4B" />
-          <ellipse cx="124" cy="14" rx="13" ry="17" fill="#6ABF4B" />
-          <ellipse cx="148" cy="30" rx="12" ry="15" fill="#6ABF4B" />
-          {/* Foot body */}
-          <path
-            d="M40 60 C40 40, 80 30, 120 40 C160 50, 165 70, 155 100 C148 125, 130 155, 115 170 C105 180, 85 180, 80 170 C70 150, 55 120, 45 90 C40 75, 38 65, 40 60Z"
-            fill="#6ABF4B"
-          />
-          {/* Bowl */}
-          <ellipse cx="128" cy="158" rx="38" ry="14" fill="#7ECBCF" />
-          <path d="M90 158 C92 185, 120 195, 128 195 C136 195, 164 185, 166 158Z" fill="#7ECBCF" />
-          <ellipse cx="128" cy="158" rx="32" ry="10" fill="#A8E0E3" />
-          {/* Leaf on bowl */}
-          <path d="M105 150 C108 138, 118 135, 115 148" stroke="#4A9E3F" strokeWidth="2.5" fill="none" />
-          <path d="M108 142 C112 136, 120 136, 116 144" fill="#4A9E3F" />
-          {/* Spoon */}
-          <line x1="148" y1="148" x2="162" y2="128" stroke="#D97706" strokeWidth="3" strokeLinecap="round" />
-          <ellipse cx="164" cy="125" rx="5" ry="7" fill="#D97706" transform="rotate(-25 164 125)" />
-          {/* Drop */}
-          <path d="M152 138 C153 133, 157 132, 156 138 C155 142, 152 142, 152 138Z" fill="#F59E0B" />
-        </svg>
+        {/* Logo */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={logoUrl}
+          alt="StepMeal"
+          width="200"
+          height="200"
+          style={{ marginBottom: "20px", borderRadius: "32px" }}
+        />
 
         {/* Title */}
         <div style={{ display: "flex", alignItems: "baseline", marginBottom: "8px" }}>
