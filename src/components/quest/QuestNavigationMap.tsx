@@ -1,12 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
-declare global {
-  interface Window {
-    kakao: any;
-  }
-}
+import { useEffect, useRef } from "react";
+import { useKakaoMap } from "@/hooks/useKakaoMap";
 
 interface Props {
   destLat: number;
@@ -18,25 +13,7 @@ interface Props {
 
 export default function QuestNavigationMap({ destLat, destLng, destName, currentLat, currentLng }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    const KAKAO_KEY = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
-    if (!KAKAO_KEY) return;
-
-    // Check if script already loaded
-    if (window.kakao?.maps) {
-      setLoaded(true);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_KEY}&autoload=false`;
-    script.onload = () => {
-      window.kakao.maps.load(() => setLoaded(true));
-    };
-    document.head.appendChild(script);
-  }, []);
+  const { loaded, hasKey } = useKakaoMap();
 
   useEffect(() => {
     if (!loaded || !mapRef.current) return;
@@ -93,7 +70,7 @@ export default function QuestNavigationMap({ destLat, destLng, destName, current
     }
   }, [loaded, destLat, destLng, destName, currentLat, currentLng]);
 
-  if (!process.env.NEXT_PUBLIC_KAKAO_MAP_KEY) {
+  if (!hasKey) {
     return (
       <div className="h-48 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center">
         <p className="text-xs text-[var(--color-text-muted)]">지도 API 키가 설정되지 않았습니다</p>

@@ -1,19 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import TransportSelector from "@/components/move/TransportSelector";
+import MovementTrackingMap from "@/components/move/MovementTrackingMap";
 import { useMovementStore } from "@/stores/movementStore";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { formatDistance, formatDuration, formatSpeed, haversineDistance } from "@/lib/geolocation";
 import { estimateSc } from "@/lib/sc-calculator";
 import type { GpsPoint } from "@/types";
 
+type TabType = "map" | "stats";
+
 export default function TrackingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showTransportSwitch, setShowTransportSwitch] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>("map");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastPointRef = useRef<GpsPoint | null>(null);
   const totalDistanceRef = useRef(0);
@@ -26,6 +30,8 @@ export default function TrackingPage() {
     elapsedSec,
     estimatedSc,
     startTime,
+    segments,
+    currentSegmentPoints,
     addGpsPoint,
     updateDistance,
     updateElapsed,
@@ -37,6 +43,12 @@ export default function TrackingPage() {
 
   const { position, error, startWatching, stopWatching } = useGeolocation();
   const completedRef = useRef(false);
+
+  // All GPS points for map (completed segments + current)
+  const allPoints = useMemo(() => {
+    const pastPoints = segments.flatMap((s) => s.points);
+    return [...pastPoints, ...currentSegmentPoints];
+  }, [segments, currentSegmentPoints]);
 
   // Keep ref in sync with store
   useEffect(() => {
@@ -99,9 +111,9 @@ export default function TrackingPage() {
     // Finalize current segment
     const lastSeg = finalizeSegment();
     const store = useMovementStore.getState();
-    const segments = store.segments;
+    const segs = store.segments;
 
-    if (segments.length === 0 && !lastSeg) {
+    if (segs.length === 0 && !lastSeg) {
       alert("이동 데이터가 없습니다. 최소 몇 초 이상 이동해주세요.");
       setLoading(false);
       return;
@@ -113,7 +125,7 @@ export default function TrackingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           movementId,
-          segments,
+          segments: segs,
         }),
       });
 
@@ -145,7 +157,7 @@ export default function TrackingPage() {
   const currentSpeed = position?.speed ? position.speed * 3.6 : 0;
 
   return (
-    <div className="min-h-dvh bg-[var(--color-bg)]">
+    <div className="min-h-dvh bg-[var(--color-bg)] pb-24">
       {/* Top status */}
       <div className="bg-gradient-to-br from-green-600 to-emerald-700 text-white px-4 py-6">
         <div className="max-w-lg mx-auto">
@@ -165,49 +177,123 @@ export default function TrackingPage() {
         </div>
       </div>
 
-      {/* Stats grid */}
+      {/* Tab toggle */}
       <div className="px-4 -mt-4">
-        <div className="bg-[var(--color-surface)] rounded-2xl p-4 border border-[var(--color-border)] grid grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-lg font-bold text-[var(--color-primary)] num">{estimatedSc}</p>
-            <p className="text-[10px] text-[var(--color-text-muted)]">예상 SC</p>
-          </div>
-          <div>
-            <p className="text-lg font-bold text-[var(--color-text)] num">{formatSpeed(currentSpeed)}</p>
-            <p className="text-[10px] text-[var(--color-text-muted)]">현재 속도</p>
-          </div>
-          <div>
-            <p className="text-lg font-bold text-[var(--color-text)] num">{currentTransport}</p>
-            <p className="text-[10px] text-[var(--color-text-muted)]">이동수단</p>
+        <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
+          <div className="grid grid-cols-2 p-1 gap-1">
+            <button
+              onClick={() => setActiveTab("map")}
+              className={`py-2 text-sm font-medium rounded-xl transition-colors ${
+                activeTab === "map"
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+              }`}
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M1 3.5L5 1.5L9 3.5L13 1.5V10.5L9 12.5L5 10.5L1 12.5V3.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                  <path d="M5 1.5V10.5M9 3.5V12.5" stroke="currentColor" strokeWidth="1.2"/>
+                </svg>
+                지도
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab("stats")}
+              className={`py-2 text-sm font-medium rounded-xl transition-colors ${
+                activeTab === "stats"
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+              }`}
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <rect x="1" y="8" width="3" height="5" rx="0.5" stroke="currentColor" strokeWidth="1.2"/>
+                  <rect x="5.5" y="4" width="3" height="9" rx="0.5" stroke="currentColor" strokeWidth="1.2"/>
+                  <rect x="10" y="1" width="3" height="12" rx="0.5" stroke="currentColor" strokeWidth="1.2"/>
+                </svg>
+                통계
+              </span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* GPS Error */}
-      {error && (
+      {/* Tab content */}
+      <div className="px-4 mt-3">
+        {activeTab === "map" ? (
+          <>
+            {/* Map */}
+            <MovementTrackingMap points={allPoints} />
+
+            {/* Compact stats below map */}
+            <div className="mt-3 bg-[var(--color-surface)] rounded-2xl p-3 border border-[var(--color-border)] grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-base font-bold text-[var(--color-primary)] num">{estimatedSc}</p>
+                <p className="text-[10px] text-[var(--color-text-muted)]">예상 SC</p>
+              </div>
+              <div>
+                <p className="text-base font-bold text-[var(--color-text)] num">{formatSpeed(currentSpeed)}</p>
+                <p className="text-[10px] text-[var(--color-text-muted)]">현재 속도</p>
+              </div>
+              <div>
+                <p className="text-base font-bold text-[var(--color-text)] num">{currentTransport}</p>
+                <p className="text-[10px] text-[var(--color-text-muted)]">이동수단</p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Full stats grid */}
+            <div className="bg-[var(--color-surface)] rounded-2xl p-4 border border-[var(--color-border)] grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-lg font-bold text-[var(--color-primary)] num">{estimatedSc}</p>
+                <p className="text-[10px] text-[var(--color-text-muted)]">예상 SC</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-[var(--color-text)] num">{formatSpeed(currentSpeed)}</p>
+                <p className="text-[10px] text-[var(--color-text-muted)]">현재 속도</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-[var(--color-text)] num">{currentTransport}</p>
+                <p className="text-[10px] text-[var(--color-text-muted)]">이동수단</p>
+              </div>
+            </div>
+
+            {/* GPS Error */}
+            {error && (
+              <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-sm text-red-400">
+                {error}
+              </div>
+            )}
+
+            {/* Transport switch */}
+            <div className="mt-4">
+              <button
+                onClick={() => setShowTransportSwitch(!showTransportSwitch)}
+                className="text-sm text-[var(--color-primary)] font-medium flex items-center gap-1"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 5L8 2L14 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 11L8 14L14 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {showTransportSwitch ? "닫기" : "이동수단 변경"}
+              </button>
+              {showTransportSwitch && (
+                <div className="mt-2">
+                  <TransportSelector selected={currentTransport} onSelect={(t) => { setTransport(t); setShowTransportSwitch(false); }} />
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* GPS Error on map tab */}
+      {activeTab === "map" && error && (
         <div className="mx-4 mt-3 bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-sm text-red-400">
           {error}
         </div>
       )}
-
-      {/* Transport switch */}
-      <div className="px-4 mt-4">
-        <button
-          onClick={() => setShowTransportSwitch(!showTransportSwitch)}
-          className="text-sm text-[var(--color-primary)] font-medium flex items-center gap-1"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M2 5L8 2L14 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M2 11L8 14L14 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          {showTransportSwitch ? "닫기" : "이동수단 변경"}
-        </button>
-        {showTransportSwitch && (
-          <div className="mt-2">
-            <TransportSelector selected={currentTransport} onSelect={(t) => { setTransport(t); setShowTransportSwitch(false); }} />
-          </div>
-        )}
-      </div>
 
       {/* Actions */}
       <div className="fixed bottom-0 left-0 right-0 p-4 glass border-t border-[var(--color-border)] safe-bottom">
