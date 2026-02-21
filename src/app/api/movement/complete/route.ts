@@ -9,7 +9,7 @@ import { MILESTONES, DURATION_MILESTONES } from "@/lib/missions";
 import { updateProgress } from "@/lib/progress";
 import type { MovementSegment, WeatherType, TransportType } from "@/types";
 
-const MAX_NFT_BONUS_PERCENT = 100;
+const MAX_NFT_BONUS_PERCENT = 2000;
 const VALID_TRANSPORTS = new Set(Object.keys(TRANSPORT_CONFIG));
 const VALID_WEATHERS = new Set(['CLEAR','CLOUDY','RAIN','SNOW','HEAVY_RAIN','HEAVY_SNOW','EXTREME_HEAT','EXTREME_COLD']);
 
