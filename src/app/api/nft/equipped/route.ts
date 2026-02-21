@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ENHANCE_BONUS_PER_LEVEL, SET_BONUS } from "@/lib/constants";
 
 export async function GET() {
   const session = await auth();
@@ -39,13 +40,12 @@ export async function GET() {
     // Calculate total bonus percent from all equipped NFTs
     let totalBonusPercent = 0;
     for (const nft of equipped) {
-      const baseBonus = nft.template.scBonusPercent;
-      const enhanceMultiplier = Math.pow(1.08, nft.enhanceLevel);
-      totalBonusPercent += Math.floor(baseBonus * enhanceMultiplier);
+      totalBonusPercent += nft.template.scBonusPercent;
+      totalBonusPercent += nft.enhanceLevel * ENHANCE_BONUS_PER_LEVEL;
     }
     // Set bonus
-    if (typeCount >= 3) totalBonusPercent += 40;
-    else if (typeCount >= 2) totalBonusPercent += 20;
+    if (typeCount >= 3) totalBonusPercent += SET_BONUS.THREE_TYPES;
+    else if (typeCount >= 2) totalBonusPercent += SET_BONUS.TWO_TYPES;
 
     return NextResponse.json({
       slots,

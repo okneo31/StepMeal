@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateMovementSc, getMultiModalBonus, getMultiClassCount, getTimeSlot, estimateCalories } from "@/lib/sc-calculator";
 import { calculateStrideUpdate } from "@/lib/stride-engine";
-import { TRANSPORT_CONFIG, STRIDE_TABLE, MIN_DAILY_DISTANCE } from "@/lib/constants";
+import { TRANSPORT_CONFIG, STRIDE_TABLE, MIN_DAILY_DISTANCE, ENHANCE_BONUS_PER_LEVEL, SET_BONUS } from "@/lib/constants";
 import { getKSTToday } from "@/lib/kst";
 import { MILESTONES, DURATION_MILESTONES } from "@/lib/missions";
 import { updateProgress } from "@/lib/progress";
@@ -63,15 +63,21 @@ export async function POST(req: Request) {
     });
     const strideLevel = stride?.strideLevel || 0;
 
-    // Get NFT bonus
-    const userNfts = await prisma.userNft.findMany({
-      where: { userId: session.user.id },
-      include: { template: { select: { scBonusPercent: true } } },
+    // Get NFT bonus (only EQUIPPED NFTs contribute)
+    const equippedNfts = await prisma.userNft.findMany({
+      where: { userId: session.user.id, isEquipped: true },
+      include: { template: { select: { scBonusPercent: true, nftType: true } } },
     });
-    const nftBonusPercent = Math.min(
-      userNfts.reduce((sum, nft) => sum + nft.template.scBonusPercent, 0),
-      MAX_NFT_BONUS_PERCENT,
-    );
+    let nftBonusPercent = 0;
+    for (const nft of equippedNfts) {
+      nftBonusPercent += nft.template.scBonusPercent;
+      nftBonusPercent += nft.enhanceLevel * ENHANCE_BONUS_PER_LEVEL;
+    }
+    // Set bonus for equipping multiple NFT types
+    const equippedTypes = new Set(equippedNfts.map(n => n.template.nftType));
+    if (equippedTypes.size >= 3) nftBonusPercent += SET_BONUS.THREE_TYPES;
+    else if (equippedTypes.size >= 2) nftBonusPercent += SET_BONUS.TWO_TYPES;
+    nftBonusPercent = Math.min(nftBonusPercent, MAX_NFT_BONUS_PERCENT);
 
     // Check for active booster
     const now = new Date();
