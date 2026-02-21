@@ -14,25 +14,30 @@ export async function GET(req: Request) {
   const page = Number.isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
   const limit = Number.isNaN(rawLimit) || rawLimit < 1 ? 20 : Math.min(rawLimit, 100);
 
-  const [movements, total] = await Promise.all([
-    prisma.movement.findMany({
-      where: { userId: session.user.id, status: "COMPLETED" },
-      orderBy: { completedAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.movement.count({
-      where: { userId: session.user.id, status: "COMPLETED" },
-    }),
-  ]);
+  try {
+    const [movements, total] = await Promise.all([
+      prisma.movement.findMany({
+        where: { userId: session.user.id, status: "COMPLETED" },
+        orderBy: { completedAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.movement.count({
+        where: { userId: session.user.id, status: "COMPLETED" },
+      }),
+    ]);
 
-  return NextResponse.json({
-    movements: movements.map((m) => ({
-      ...m,
-      segments: (() => { try { return JSON.parse(m.segments); } catch { return []; } })(),
-    })),
-    total,
-    page,
-    totalPages: Math.ceil(total / limit),
-  });
+    return NextResponse.json({
+      movements: movements.map((m) => ({
+        ...m,
+        segments: (() => { try { return JSON.parse(m.segments); } catch { return []; } })(),
+      })),
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (error: any) {
+    console.error("Movement history error:", error);
+    return NextResponse.json({ error: "서버 오류", detail: error?.message || String(error) }, { status: 500 });
+  }
 }

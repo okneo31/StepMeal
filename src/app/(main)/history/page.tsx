@@ -36,12 +36,18 @@ export default function HistoryPage() {
 
   useEffect(() => {
     fetch("/api/movement/history")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
         setMovements(data.movements || []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((e) => {
+        console.error("History fetch error:", e);
+        setLoading(false);
+      });
   }, []);
 
   return (
