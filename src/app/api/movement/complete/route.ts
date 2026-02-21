@@ -9,6 +9,7 @@ import { MILESTONES, DURATION_MILESTONES } from "@/lib/missions";
 import { updateProgress } from "@/lib/progress";
 import type { MovementSegment, WeatherType, TransportType } from "@/types";
 import { grantExp, EXP_REWARDS } from "@/lib/exp";
+import { getWeather } from "@/lib/weather";
 
 const MAX_NFT_BONUS_PERCENT = 2000;
 const VALID_TRANSPORTS = new Set(Object.keys(TRANSPORT_CONFIG));
@@ -21,18 +22,18 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { movementId, segments, weather = "CLEAR" } = await req.json() as {
+    const { movementId, segments, weather: clientWeather } = await req.json() as {
       movementId: string;
       segments: MovementSegment[];
-      weather?: WeatherType;
+      weather?: string;
     };
 
     if (!movementId || !segments || !Array.isArray(segments) || segments.length === 0) {
       return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
     }
 
-    // Validate weather
-    if (!VALID_WEATHERS.has(weather)) {
+    // Validate client weather if provided
+    if (clientWeather && !VALID_WEATHERS.has(clientWeather)) {
       return NextResponse.json({ error: "잘못된 날씨 정보입니다." }, { status: 400 });
     }
 
@@ -56,6 +57,14 @@ export async function POST(req: Request) {
 
     if (!movement) {
       return NextResponse.json({ error: "이동을 찾을 수 없습니다." }, { status: 404 });
+    }
+
+    // Resolve weather: client value > server auto-lookup > fallback CLEAR
+    let weather: WeatherType = "CLEAR";
+    if (clientWeather && VALID_WEATHERS.has(clientWeather)) {
+      weather = clientWeather as WeatherType;
+    } else if (movement.startLat && movement.startLng) {
+      weather = await getWeather(movement.startLat, movement.startLng);
     }
 
     // Get user stride info
