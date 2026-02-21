@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { generateDailyMissions, ALL_CLEAR_BASE_SC, STREAK_BONUS_SC } from "@/lib/missions";
 import { updateProgress } from "@/lib/progress";
 import { getKSTToday } from "@/lib/kst";
+import { grantExp, EXP_REWARDS } from "@/lib/exp";
 
 // GET: today's missions (auto-generate if not exist)
 export async function GET() {
@@ -193,6 +194,7 @@ export async function PATCH(req: Request) {
       });
     }
 
+    await grantExp(session.user.id, EXP_REWARDS.DAILY_MISSION).catch(() => {});
     return NextResponse.json({ scBalance: missionScBal, mcBalance: missionMcBal, rewardSc: mission.rewardSc, rewardMc: mission.rewardMc });
   } catch (error) {
     console.error("Mission claim error:", error);

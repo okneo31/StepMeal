@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { QR_SCAN_DAILY_LIMIT } from "@/lib/constants";
 import { getBoosterMultiplier, BOOSTER_DURATION_HOURS } from "@/lib/booster-config";
 import { getKSTToday } from "@/lib/kst";
+import { grantExp, EXP_REWARDS } from "@/lib/exp";
 
 const PARTNER_API_URL = process.env.PARTNER_API_URL || "https://qr.stepmeal.top/api/verify.php";
 
@@ -160,6 +161,9 @@ export async function POST(req: Request) {
         data: { userId: session.user.id, boosterType, multiplier: boostMult, productName, activatedAt: now, expiresAt },
       });
     }
+
+    // Grant EXP for QR scan
+    await grantExp(session.user.id, EXP_REWARDS.QR_SCAN).catch(() => {});
 
     return NextResponse.json({
       success: true,

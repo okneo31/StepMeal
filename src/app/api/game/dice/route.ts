@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateProgress } from "@/lib/progress";
 import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
+import { grantExp, EXP_REWARDS } from "@/lib/exp";
 
 const DAILY_LIMIT = 10;
 const BET_AMOUNTS = [10, 30, 50, 100];
@@ -95,10 +96,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `${coinType}가 부족합니다.` }, { status: 400 });
     }
 
+    // CHM stat bonus for game payout
+    const character = await prisma.character.findUnique({
+      where: { userId: session.user.id },
+      select: { statChm: true },
+    });
+    const chmMult = 1 + (character?.statChm ?? 5) * 0.01;
+
     const roll = Math.floor(Math.random() * 6) + 1;
     const isWin = checkWin(roll, betType, betValue);
     const multiplier = getDiceMultiplier(betType);
-    const payout = isWin ? betAmount * multiplier : 0;
+    const payout = isWin ? Math.floor(betAmount * multiplier * chmMult) : 0;
 
     // Sequential atomic operations (no interactive transaction)
     const deductData = coinType === "SC"
@@ -160,6 +168,7 @@ export async function POST(req: Request) {
 
     // Await progress update to prevent connection pool exhaustion
     await updateProgress(session.user.id, { type: "GAME_PLAY" }).catch(() => {});
+    if (isWin) await grantExp(session.user.id, EXP_REWARDS.GAME_WIN).catch(() => {});
     return NextResponse.json({
       roll,
       betType,

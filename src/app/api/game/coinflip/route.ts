@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateProgress } from "@/lib/progress";
 import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
+import { grantExp, EXP_REWARDS } from "@/lib/exp";
 
 const DAILY_LIMIT = 10;
 const BET_AMOUNTS = [10, 30, 50, 100];
@@ -71,9 +72,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "MC가 부족합니다." }, { status: 400 });
     }
 
+    // CHM stat bonus for game payout
+    const character = await prisma.character.findUnique({
+      where: { userId: session.user.id },
+      select: { statChm: true },
+    });
+    const chmMult = 1 + (character?.statChm ?? 5) * 0.01;
+
     const coinResult = Math.random() < 0.5 ? "heads" : "tails";
     const isWin = coinResult === pick;
-    const payout = isWin ? betAmount * 2 : 0;
+    const payout = isWin ? Math.floor(betAmount * 2 * chmMult) : 0;
 
     // Sequential atomic operations (no interactive transaction)
     let updatedBalance = await prisma.coinBalance.update({
@@ -128,6 +136,7 @@ export async function POST(req: Request) {
     });
 
     await updateProgress(session.user.id, { type: "GAME_PLAY" }).catch(() => {});
+    if (isWin) await grantExp(session.user.id, EXP_REWARDS.GAME_WIN).catch(() => {});
     return NextResponse.json({
       coinResult,
       pick,

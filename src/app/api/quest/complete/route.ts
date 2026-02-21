@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateProgress } from "@/lib/progress";
+import { grantExp, EXP_REWARDS } from "@/lib/exp";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -37,6 +38,7 @@ export async function POST(req: Request) {
     });
 
     await updateProgress(session.user.id, { type: "QUEST_COMPLETE" }).catch(() => {});
+    await grantExp(session.user.id, EXP_REWARDS.QUEST_COMPLETE).catch(() => {});
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Quest complete error:", error);

@@ -52,6 +52,9 @@ export interface ScBreakdown {
   nftMult: number;
   synergyMult: number;
   conditionMult: number;
+  effMult: number;
+  classMult: number;
+  luckBonusSc: number;
   bonusSc: number;
   totalSc: number;
   dailyCapped?: boolean;

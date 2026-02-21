@@ -3,11 +3,12 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateMovementSc, getMultiModalBonus, getMultiClassCount, getTimeSlot, estimateCalories } from "@/lib/sc-calculator";
 import { calculateStrideUpdate } from "@/lib/stride-engine";
-import { TRANSPORT_CONFIG, STRIDE_TABLE, MIN_DAILY_DISTANCE, ENHANCE_BONUS_PER_LEVEL, SET_BONUS, CONDITION_DECAY_PER_MOVE, CONDITION_SC_MULTIPLIER, VEHICLE_SYNERGY } from "@/lib/constants";
+import { TRANSPORT_CONFIG, STRIDE_TABLE, MIN_DAILY_DISTANCE, ENHANCE_BONUS_PER_LEVEL, SET_BONUS, CONDITION_DECAY_PER_MOVE, CONDITION_SC_MULTIPLIER, VEHICLE_SYNERGY, CHARACTER_CLASSES } from "@/lib/constants";
 import { getKSTToday } from "@/lib/kst";
 import { MILESTONES, DURATION_MILESTONES } from "@/lib/missions";
 import { updateProgress } from "@/lib/progress";
 import type { MovementSegment, WeatherType, TransportType } from "@/types";
+import { grantExp, EXP_REWARDS } from "@/lib/exp";
 
 const MAX_NFT_BONUS_PERCENT = 2000;
 const VALID_TRANSPORTS = new Set(Object.keys(TRANSPORT_CONFIG));
@@ -100,12 +101,24 @@ export async function POST(req: Request) {
       }
     }
 
-    // Character condition → SC multiplier
+    // Character: condition, stats, class
     const character = await prisma.character.findUnique({
       where: { userId: session.user.id },
-      select: { condition: true, maxCondition: true },
+      select: { condition: true, maxCondition: true, statEff: true, statLck: true, statHp: true, mainClass: true, subClass: true },
     });
     const conditionMult = CONDITION_SC_MULTIPLIER(character?.condition ?? 100);
+    const effStat = character?.statEff ?? 10;
+    const lckStat = character?.statLck ?? 5;
+    const hpStat = character?.statHp ?? 10;
+
+    // Class bonus: check if transport matches main/sub class
+    const usedClassesArr = Array.from(usedClasses);
+    const mainClassTransports: string[] = character?.mainClass ? ([...(CHARACTER_CLASSES[character.mainClass as keyof typeof CHARACTER_CLASSES]?.transports || [])]) : [];
+    const subClassTransports: string[] = character?.subClass ? ([...(CHARACTER_CLASSES[character.subClass as keyof typeof CHARACTER_CLASSES]?.transports || [])]) : [];
+    const usedTransportArr = segments.map(s => s.transport);
+    const mainMatch = usedTransportArr.some(t => mainClassTransports.includes(t));
+    const subMatch = usedTransportArr.some(t => subClassTransports.includes(t));
+    const classPercent = mainMatch ? 15 : subMatch ? 8 : 0;
 
     // Check for active booster
     const now = new Date();
@@ -116,7 +129,7 @@ export async function POST(req: Request) {
     const boosterMult = activeBooster?.multiplier || 1.0;
 
     // Calculate SC
-    const scBreakdown = calculateMovementSc(segments, strideLevel, weather, now, nftBonusPercent, synergyPercent, conditionMult);
+    const scBreakdown = calculateMovementSc(segments, strideLevel, weather, now, nftBonusPercent, synergyPercent, conditionMult, effStat, classPercent, lckStat);
 
     // Apply booster multiplier
     if (boosterMult > 1.0) {
@@ -164,6 +177,9 @@ export async function POST(req: Request) {
         nftMult: scBreakdown.nftMult,
         synergyMult: scBreakdown.synergyMult,
         conditionMult: scBreakdown.conditionMult,
+        effMult: scBreakdown.effMult,
+        classMult: scBreakdown.classMult,
+        luckBonusSc: scBreakdown.luckBonusSc,
         bonusSc: scBreakdown.bonusSc,
         totalSc: scBreakdown.totalSc,
         completedAt: now,
@@ -245,9 +261,10 @@ export async function POST(req: Request) {
       },
     });
 
-    // 6. Decay character condition
+    // 6. Decay character condition (HP stat reduces decay)
     if (character) {
-      const newCondition = Math.max(0, (character.condition ?? 100) - CONDITION_DECAY_PER_MOVE);
+      const condDecay = Math.max(1, CONDITION_DECAY_PER_MOVE - Math.floor(hpStat / 10));
+      const newCondition = Math.max(0, (character.condition ?? 100) - condDecay);
       await prisma.character.update({
         where: { userId: session.user.id },
         data: { condition: newCondition, lastCondDecay: now },
@@ -301,6 +318,10 @@ export async function POST(req: Request) {
       isMulti,
       walkDistanceM,
     }).catch((e) => console.error("Progress update error:", e));
+
+    // ─── Grant EXP ───
+    const expAmount = Math.floor((totalDistance / 1000) * EXP_REWARDS.MOVEMENT_PER_KM);
+    await grantExp(session.user.id, expAmount).catch((e) => console.error("EXP grant error:", e));
 
     return NextResponse.json({
       movementId,

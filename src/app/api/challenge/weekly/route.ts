@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { WEEKLY_TIERS } from "@/lib/missions";
 import { getKSTMonday } from "@/lib/kst";
+import { grantExp, EXP_REWARDS } from "@/lib/exp";
 
 // GET: this week's challenge
 export async function GET() {
@@ -105,6 +106,8 @@ export async function POST(req: Request) {
       });
     }
 
+    const weeklyExpMap: Record<string, number> = { BRONZE: EXP_REWARDS.WEEKLY_BRONZE, SILVER: EXP_REWARDS.WEEKLY_SILVER, GOLD: EXP_REWARDS.WEEKLY_GOLD };
+    await grantExp(session.user.id, weeklyExpMap[tier] || 0).catch(() => {});
     return NextResponse.json({ scBalance: weeklyBalance!.scBalance, mcBalance: weeklyBalance!.mcBalance, rewardSc: tierDef.rewardSc, rewardMc: tierDef.rewardMc });
   } catch (error) {
     const message = error instanceof Error ? error.message : "서버 오류";

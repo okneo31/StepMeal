@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
+import { grantExp, EXP_REWARDS } from "@/lib/exp";
 
 const TARGETS = [
   { km: 1, multiplier: 1.5 },
@@ -223,7 +224,14 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: `목표까지 ${(targetKm - todayKm).toFixed(1)}km 남았습니다.` }, { status: 400 });
     }
 
-    const payout = Math.floor(prediction.betAmount * (prediction.multiplier || 1));
+    // CHM stat bonus for game payout
+    const character = await prisma.character.findUnique({
+      where: { userId: session.user.id },
+      select: { statChm: true },
+    });
+    const chmMult = 1 + (character?.statChm ?? 5) * 0.01;
+
+    const payout = Math.floor(prediction.betAmount * (prediction.multiplier || 1) * chmMult);
 
     // Sequential atomic operations
     const updatedBalance = await prisma.coinBalance.update({
@@ -255,6 +263,7 @@ export async function PATCH(req: Request) {
       },
     });
 
+    await grantExp(session.user.id, EXP_REWARDS.GAME_WIN).catch(() => {});
     return NextResponse.json({
       isWin: true,
       payout,

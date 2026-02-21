@@ -70,6 +70,12 @@ export async function PATCH(req: Request) {
       if (body.subClass !== null && !["BODY", "ECO", "RIDE"].includes(body.subClass)) {
         return NextResponse.json({ error: "잘못된 서브 클래스입니다." }, { status: 400 });
       }
+      if (body.subClass !== null) {
+        const charForLevel = await prisma.character.findUnique({ where: { userId: session.user.id }, select: { level: true } });
+        if (!charForLevel || charForLevel.level < 10) {
+          return NextResponse.json({ error: "서브 클래스는 Lv.10 이상에서 해금됩니다." }, { status: 400 });
+        }
+      }
       data.subClass = body.subClass;
     }
 

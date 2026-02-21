@@ -53,9 +53,12 @@ export function calculateMovementSc(
   nftBonusPercent: number = 0,
   synergyPercent: number = 0,
   conditionMult: number = 1.0,
+  effStat: number = 10,
+  classPercent: number = 0,
+  lckStat: number = 5,
 ): ScBreakdown {
   if (segments.length === 0) {
-    return { baseSc: 0, transportMult: 1, strideMult: 1, timeMult: 1, weatherMult: 1, multiMult: 1, nftMult: 1, synergyMult: 1, conditionMult: 1, bonusSc: 0, totalSc: 0 };
+    return { baseSc: 0, transportMult: 1, strideMult: 1, timeMult: 1, weatherMult: 1, multiMult: 1, nftMult: 1, synergyMult: 1, conditionMult: 1, effMult: 1, classMult: 1, luckBonusSc: 0, bonusSc: 0, totalSc: 0 };
   }
 
   // Calculate base SC per segment
@@ -84,8 +87,21 @@ export function calculateMovementSc(
   // Vehicle synergy multiplier (e.g. 15% = 1.15)
   const synergyMult = 1 + synergyPercent / 100;
 
+  // EFF stat multiplier: 1 + stat × 0.005
+  const effMult = 1 + effStat * 0.005;
+
+  // Class bonus multiplier
+  const classMult = 1 + classPercent / 100;
+
   // Calculate total (condition applied last)
-  let totalSc = Math.floor(baseSc * strideMult * timeMult * weatherMult * multiMult * nftMult * synergyMult * conditionMult);
+  let totalSc = Math.floor(baseSc * strideMult * timeMult * weatherMult * multiMult * nftMult * synergyMult * effMult * classMult * conditionMult);
+
+  // LCK bonus: lckStat% chance to gain 50% of baseSc as bonus
+  let luckBonusSc = 0;
+  if (lckStat > 0 && Math.random() * 100 < lckStat) {
+    luckBonusSc = Math.floor(baseSc * 0.5);
+    totalSc += luckBonusSc;
+  }
 
   // Apply daily cap
   const dailyCap = strideInfo.dailyCap;
@@ -102,6 +118,9 @@ export function calculateMovementSc(
     nftMult,
     synergyMult,
     conditionMult,
+    effMult,
+    classMult,
+    luckBonusSc,
     bonusSc: 0,
     totalSc,
     dailyCapped,

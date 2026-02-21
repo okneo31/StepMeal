@@ -17,6 +17,9 @@ interface ScBreakdown {
   nftMult: number;
   synergyMult: number;
   conditionMult: number;
+  effMult: number;
+  classMult: number;
+  luckBonusSc: number;
   totalSc: number;
   dailyCapped?: boolean;
 }
@@ -183,6 +186,18 @@ function ResultContent() {
                 icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="4" cy="10" r="2.5" stroke="#8B5CF6" strokeWidth="1.2"/><circle cx="10" cy="10" r="2.5" stroke="#8B5CF6" strokeWidth="1.2"/><path d="M4 10L7 4L10 10" stroke="#8B5CF6" strokeWidth="1.2" strokeLinecap="round"/></svg>}
               />
               <MultiplierRow
+                label="EFF 효율"
+                value={breakdown.effMult}
+                color="bg-emerald-500/10"
+                icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2L9 6H13L10 9L11 13L7 10.5L3 13L4 9L1 6H5L7 2Z" stroke="#10B981" strokeWidth="1.2" fill="#10B981" fillOpacity="0.1"/></svg>}
+              />
+              <MultiplierRow
+                label="클래스 보너스"
+                value={breakdown.classMult}
+                color="bg-sky-500/10"
+                icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L12 5V10L7 13L2 10V5L7 1Z" stroke="#0EA5E9" strokeWidth="1.2" fill="#0EA5E9" fillOpacity="0.1"/></svg>}
+              />
+              <MultiplierRow
                 label="컨디션"
                 value={breakdown.conditionMult}
                 color="bg-red-500/10"
@@ -197,6 +212,19 @@ function ResultContent() {
                 />
               )}
             </div>
+
+            {/* Luck bonus */}
+            {breakdown.luckBonusSc > 0 && (
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-yellow-500/10">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1C3.7 1 1 3.7 1 7C1 10.3 3.7 13 7 13C10.3 13 13 10.3 13 7C13 3.7 10.3 1 7 1Z" stroke="#EAB308" strokeWidth="1.2" fill="#EAB308" fillOpacity="0.1"/><path d="M5 7L7 5L9 7L7 9L5 7Z" fill="#EAB308"/></svg>
+                  </div>
+                  <span className="text-sm text-[var(--color-text-secondary)]">LCK 행운 보너스</span>
+                </div>
+                <span className="text-sm font-bold text-yellow-400 num">+{breakdown.luckBonusSc} SC</span>
+              </div>
+            )}
 
             {/* Total */}
             <div className="flex items-center justify-between pt-3 mt-1 border-t border-[var(--color-border)]">
