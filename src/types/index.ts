@@ -50,8 +50,11 @@ export interface ScBreakdown {
   weatherMult: number;
   multiMult: number;
   nftMult: number;
+  synergyMult: number;
+  conditionMult: number;
   bonusSc: number;
   totalSc: number;
+  dailyCapped?: boolean;
 }
 
 export interface DailySummary {

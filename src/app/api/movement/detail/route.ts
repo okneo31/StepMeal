@@ -47,6 +47,8 @@ export async function GET(req: Request) {
         weatherMult: movement.weatherMult,
         multiMult: movement.multiMult,
         nftMult: movement.nftMult,
+        synergyMult: movement.synergyMult,
+        conditionMult: movement.conditionMult,
         bonusSc: movement.bonusSc,
         totalSc: movement.totalSc,
       },

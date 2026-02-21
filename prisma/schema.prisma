@@ -94,6 +94,8 @@ model Movement {
   weatherMult   Float    @default(1.0)
   multiMult     Float    @default(1.0)
   nftMult       Float    @default(1.0)
+  synergyMult   Float    @default(1.0)
+  conditionMult Float    @default(1.0)
   bonusSc       Int      @default(0)
   totalSc       Int      @default(0)
   startedAt     DateTime @default(now())

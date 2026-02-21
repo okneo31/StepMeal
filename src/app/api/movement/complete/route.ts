@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateMovementSc, getMultiModalBonus, getMultiClassCount, getTimeSlot, estimateCalories } from "@/lib/sc-calculator";
 import { calculateStrideUpdate } from "@/lib/stride-engine";
-import { TRANSPORT_CONFIG, STRIDE_TABLE, MIN_DAILY_DISTANCE, ENHANCE_BONUS_PER_LEVEL, SET_BONUS } from "@/lib/constants";
+import { TRANSPORT_CONFIG, STRIDE_TABLE, MIN_DAILY_DISTANCE, ENHANCE_BONUS_PER_LEVEL, SET_BONUS, CONDITION_DECAY_PER_MOVE, CONDITION_SC_MULTIPLIER, VEHICLE_SYNERGY } from "@/lib/constants";
 import { getKSTToday } from "@/lib/kst";
 import { MILESTONES, DURATION_MILESTONES } from "@/lib/missions";
 import { updateProgress } from "@/lib/progress";
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     // Get NFT bonus (only EQUIPPED NFTs contribute)
     const equippedNfts = await prisma.userNft.findMany({
       where: { userId: session.user.id, isEquipped: true },
-      include: { template: { select: { scBonusPercent: true, nftType: true } } },
+      include: { template: { select: { scBonusPercent: true, nftType: true, matchedTransports: true, synergyPercent: true, transportClass: true } } },
     });
     let nftBonusPercent = 0;
     for (const nft of equippedNfts) {
@@ -79,6 +79,34 @@ export async function POST(req: Request) {
     else if (equippedTypes.size >= 2) nftBonusPercent += SET_BONUS.TWO_TYPES;
     nftBonusPercent = Math.min(nftBonusPercent, MAX_NFT_BONUS_PERCENT);
 
+    // Vehicle synergy bonus
+    const usedTransports = new Set<string>(segments.map(s => s.transport));
+    const usedClasses = new Set<string>(segments.map(s => TRANSPORT_CONFIG[s.transport].class));
+    let synergyPercent = 0;
+    const vehicleNft = equippedNfts.find(n => n.template.nftType === "VEHICLE");
+    if (vehicleNft && vehicleNft.template.synergyPercent > 0) {
+      const matched: string[] = vehicleNft.template.matchedTransports
+        ? (() => { try { return JSON.parse(vehicleNft.template.matchedTransports as string); } catch { return []; } })()
+        : [];
+      const hasMatchedTransport = matched.some(t => usedTransports.has(t));
+      const hasMatchedClass = vehicleNft.template.transportClass && usedClasses.has(vehicleNft.template.transportClass);
+
+      if (hasMatchedTransport) {
+        synergyPercent = Math.floor(vehicleNft.template.synergyPercent * VEHICLE_SYNERGY.MATCHED);
+      } else if (hasMatchedClass) {
+        synergyPercent = Math.floor(vehicleNft.template.synergyPercent * VEHICLE_SYNERGY.SAME_CLASS);
+      } else {
+        synergyPercent = Math.floor(vehicleNft.template.synergyPercent * VEHICLE_SYNERGY.OTHER_CLASS);
+      }
+    }
+
+    // Character condition → SC multiplier
+    const character = await prisma.character.findUnique({
+      where: { userId: session.user.id },
+      select: { condition: true, maxCondition: true },
+    });
+    const conditionMult = CONDITION_SC_MULTIPLIER(character?.condition ?? 100);
+
     // Check for active booster
     const now = new Date();
     const activeBooster = await prisma.activeBooster.findFirst({
@@ -88,7 +116,7 @@ export async function POST(req: Request) {
     const boosterMult = activeBooster?.multiplier || 1.0;
 
     // Calculate SC
-    const scBreakdown = calculateMovementSc(segments, strideLevel, weather, now, nftBonusPercent);
+    const scBreakdown = calculateMovementSc(segments, strideLevel, weather, now, nftBonusPercent, synergyPercent, conditionMult);
 
     // Apply booster multiplier
     if (boosterMult > 1.0) {
@@ -134,6 +162,8 @@ export async function POST(req: Request) {
         weatherMult: scBreakdown.weatherMult,
         multiMult: scBreakdown.multiMult,
         nftMult: scBreakdown.nftMult,
+        synergyMult: scBreakdown.synergyMult,
+        conditionMult: scBreakdown.conditionMult,
         bonusSc: scBreakdown.bonusSc,
         totalSc: scBreakdown.totalSc,
         completedAt: now,
@@ -214,6 +244,15 @@ export async function POST(req: Request) {
         totalDistance: { increment: totalDistance },
       },
     });
+
+    // 6. Decay character condition
+    if (character) {
+      const newCondition = Math.max(0, (character.condition ?? 100) - CONDITION_DECAY_PER_MOVE);
+      await prisma.character.update({
+        where: { userId: session.user.id },
+        data: { condition: newCondition, lastCondDecay: now },
+      });
+    }
 
     // ─── Milestone Bonuses ───
     let milestoneBonusSc = 0;

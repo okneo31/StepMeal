@@ -15,7 +15,10 @@ interface ScBreakdown {
   weatherMult: number;
   multiMult: number;
   nftMult: number;
+  synergyMult: number;
+  conditionMult: number;
   totalSc: number;
+  dailyCapped?: boolean;
 }
 
 interface MoveResult {
@@ -173,6 +176,18 @@ function ResultContent() {
                 color="bg-amber-500/10"
                 icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L4 5.5V10.5L7 12.5L10 10.5V5.5L7 1.5Z" stroke="#F59E0B" strokeWidth="1.2" fill="#F59E0B" fillOpacity="0.1"/></svg>}
               />
+              <MultiplierRow
+                label="탈것 시너지"
+                value={breakdown.synergyMult}
+                color="bg-violet-500/10"
+                icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="4" cy="10" r="2.5" stroke="#8B5CF6" strokeWidth="1.2"/><circle cx="10" cy="10" r="2.5" stroke="#8B5CF6" strokeWidth="1.2"/><path d="M4 10L7 4L10 10" stroke="#8B5CF6" strokeWidth="1.2" strokeLinecap="round"/></svg>}
+              />
+              <MultiplierRow
+                label="컨디션"
+                value={breakdown.conditionMult}
+                color="bg-red-500/10"
+                icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2.5C4.5 2.5 2.5 4.5 3 7C3.5 9.5 7 12 7 12C7 12 10.5 9.5 11 7C11.5 4.5 9.5 2.5 7 2.5Z" stroke="#EF4444" strokeWidth="1.2" fill="#EF4444" fillOpacity="0.1"/></svg>}
+              />
               {boosterMult && boosterMult > 1.0 && (
                 <MultiplierRow
                   label="부스터 효과"
@@ -188,6 +203,18 @@ function ResultContent() {
               <span className="text-sm font-bold text-[var(--color-text)]">최종 획득</span>
               <span className="text-lg font-bold text-[var(--color-primary)] num">+{breakdown.totalSc} SC</span>
             </div>
+
+            {/* Daily cap warning */}
+            {breakdown.dailyCapped && (
+              <div className="mt-2 flex items-center gap-2 bg-amber-500/5 rounded-lg px-3 py-2 border border-amber-500/20">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M7 1L1 13H13L7 1Z" stroke="#F59E0B" strokeWidth="1.2" strokeLinejoin="round"/>
+                  <path d="M7 5.5V8.5" stroke="#F59E0B" strokeWidth="1.2" strokeLinecap="round"/>
+                  <circle cx="7" cy="10.5" r="0.5" fill="#F59E0B"/>
+                </svg>
+                <span className="text-xs text-amber-400">일일 SC 상한에 도달했습니다. STRIDE 레벨업으로 상한을 올려보세요!</span>
+              </div>
+            )}
           </div>
         )}
 

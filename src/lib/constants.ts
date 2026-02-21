@@ -173,8 +173,8 @@ export const EXP_PER_LEVEL = (level: number) => Math.floor(100 * Math.pow(1.15, 
 export const STATS_PER_LEVEL = 3; // 3 stat points per level
 
 // Condition decay: -5 per movement, QR food restores +20
-export const CONDITION_DECAY_PER_MOVE = 5;
-export const CONDITION_RESTORE_PER_QR = 20;
+export const CONDITION_DECAY_PER_MOVE = 10;
+export const CONDITION_RESTORE_PER_QR = 50;
 export const CONDITION_SC_MULTIPLIER = (condition: number) => {
   if (condition >= 80) return 1.0;
   if (condition >= 50) return 0.8;
