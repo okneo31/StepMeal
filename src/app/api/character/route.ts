@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { CONDITION_DAILY_RESTORE } from "@/lib/constants";
 
 // GET: Fetch user character (auto-create if not exists)
 export async function GET() {
@@ -20,6 +21,18 @@ export async function GET() {
           userId: session.user.id,
           name: session.user.name || "나의 캐릭터",
         },
+      });
+    }
+
+    // Daily condition restore at midnight (lazy check)
+    const now = new Date();
+    const lastRestore = new Date(character.lastDailyRestore);
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (lastRestore < todayMidnight && character.condition < character.maxCondition) {
+      const newCondition = Math.min(character.maxCondition, character.condition + CONDITION_DAILY_RESTORE);
+      character = await prisma.character.update({
+        where: { userId: session.user.id },
+        data: { condition: newCondition, lastDailyRestore: now },
       });
     }
 

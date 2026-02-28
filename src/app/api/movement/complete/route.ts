@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateMovementSc, getMultiModalBonus, getMultiClassCount, getTimeSlot, estimateCalories } from "@/lib/sc-calculator";
 import { calculateStrideUpdate } from "@/lib/stride-engine";
-import { TRANSPORT_CONFIG, STRIDE_TABLE, MIN_DAILY_DISTANCE, ENHANCE_BONUS_PER_LEVEL, SET_BONUS, CONDITION_DECAY_PER_MOVE, CONDITION_SC_MULTIPLIER, VEHICLE_SYNERGY, CHARACTER_CLASSES } from "@/lib/constants";
+import { TRANSPORT_CONFIG, STRIDE_TABLE, MIN_DAILY_DISTANCE, ENHANCE_BONUS_PER_LEVEL, SET_BONUS, CONDITION_DECAY_PER_MOVE, CONDITION_SC_MULTIPLIER, CONDITION_DAILY_RESTORE, VEHICLE_SYNERGY, CHARACTER_CLASSES } from "@/lib/constants";
 import { getKSTToday } from "@/lib/kst";
 import { MILESTONES, DURATION_MILESTONES } from "@/lib/missions";
 import { updateProgress } from "@/lib/progress";
@@ -113,8 +113,22 @@ export async function POST(req: Request) {
     // Character: condition, stats, class
     const character = await prisma.character.findUnique({
       where: { userId: session.user.id },
-      select: { condition: true, maxCondition: true, statEff: true, statLck: true, statHp: true, mainClass: true, subClass: true },
+      select: { condition: true, maxCondition: true, statEff: true, statLck: true, statHp: true, mainClass: true, subClass: true, lastDailyRestore: true },
     });
+
+    // Daily condition restore (lazy check before using condition)
+    if (character) {
+      const restoreNow = new Date();
+      const todayMidnight = new Date(restoreNow.getFullYear(), restoreNow.getMonth(), restoreNow.getDate());
+      if (character.lastDailyRestore < todayMidnight && character.condition < character.maxCondition) {
+        character.condition = Math.min(character.maxCondition, character.condition + CONDITION_DAILY_RESTORE);
+        await prisma.character.update({
+          where: { userId: session.user.id },
+          data: { condition: character.condition, lastDailyRestore: restoreNow },
+        });
+      }
+    }
+
     const conditionMult = CONDITION_SC_MULTIPLIER(character?.condition ?? 100);
     const effStat = character?.statEff ?? 10;
     const lckStat = character?.statLck ?? 5;
