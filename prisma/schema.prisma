@@ -39,6 +39,8 @@ model User {
   weeklyChallenges WeeklyChallenge[]
   courseAttempts   CourseAttempt[]
   achievements    UserAchievement[]
+  refreshTokens   RefreshToken[]
+  deviceTokens    DeviceToken[]
 
   // Theme system
   activeTheme     String   @default("default")
@@ -501,4 +503,30 @@ model UserAchievement {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId, achievementCode])
   @@index([userId, completed])
+}
+
+// ─── Mobile Auth ───
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revoked   Boolean  @default(false)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fcmToken  String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
