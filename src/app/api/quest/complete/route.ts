@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { updateProgress } from "@/lib/progress";
 import { grantExp, EXP_REWARDS } from "@/lib/exp";
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     const quest = await prisma.quest.findFirst({
       where: {
         id: questId,
-        userId: session.user.id,
+        userId: user.id,
         status: "ARRIVED",
       },
     });
@@ -37,8 +37,8 @@ export async function POST(req: Request) {
       },
     });
 
-    await updateProgress(session.user.id, { type: "QUEST_COMPLETE" }).catch(() => {});
-    await grantExp(session.user.id, EXP_REWARDS.QUEST_COMPLETE).catch(() => {});
+    await updateProgress(user.id, { type: "QUEST_COMPLETE" }).catch(() => {});
+    await grantExp(user.id, EXP_REWARDS.QUEST_COMPLETE).catch(() => {});
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Quest complete error:", error);

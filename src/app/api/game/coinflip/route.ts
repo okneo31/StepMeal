@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { updateProgress } from "@/lib/progress";
 import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
@@ -8,9 +8,9 @@ import { grantExp, EXP_REWARDS } from "@/lib/exp";
 const DAILY_LIMIT = 10;
 const BET_AMOUNTS = [10, 30, 50, 100];
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -18,10 +18,10 @@ export async function GET() {
   const tomorrow = getKSTTomorrow();
 
   const [balance, todayPlays] = await Promise.all([
-    prisma.coinBalance.findUnique({ where: { userId: session.user.id } }),
+    prisma.coinBalance.findUnique({ where: { userId: user.id } }),
     prisma.gamePlay.count({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         gameType: "COINFLIP",
         createdAt: { gte: today, lt: tomorrow },
       },
@@ -35,9 +35,9 @@ export async function GET() {
   });
 }
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -55,10 +55,10 @@ export async function POST(req: Request) {
     const tomorrow = getKSTTomorrow();
 
     const [preBalance, prePlays] = await Promise.all([
-      prisma.coinBalance.findUnique({ where: { userId: session.user.id } }),
+      prisma.coinBalance.findUnique({ where: { userId: user.id } }),
       prisma.gamePlay.count({
         where: {
-          userId: session.user.id,
+          userId: user.id,
           gameType: "COINFLIP",
           createdAt: { gte: today, lt: tomorrow },
         },
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
 
     // CHM stat bonus for game payout
     const character = await prisma.character.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       select: { statChm: true },
     });
     const chmMult = 1 + (character?.statChm ?? 5) * 0.01;
@@ -85,13 +85,13 @@ export async function POST(req: Request) {
 
     // Sequential atomic operations (no interactive transaction)
     let updatedBalance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: { mcBalance: { decrement: betAmount } },
     });
 
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType: "MC",
         amount: -betAmount,
         balanceAfter: updatedBalance.mcBalance,
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
 
     if (isWin) {
       updatedBalance = await prisma.coinBalance.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: {
           mcBalance: { increment: payout },
           mcLifetime: { increment: payout },
@@ -110,7 +110,7 @@ export async function POST(req: Request) {
       });
       await prisma.coinTransaction.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           coinType: "MC",
           amount: payout,
           balanceAfter: updatedBalance.mcBalance,
@@ -122,7 +122,7 @@ export async function POST(req: Request) {
 
     await prisma.gamePlay.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         gameType: "COINFLIP",
         coinType: "MC",
         betAmount,
@@ -135,8 +135,8 @@ export async function POST(req: Request) {
       },
     });
 
-    await updateProgress(session.user.id, { type: "GAME_PLAY" }).catch(() => {});
-    if (isWin) await grantExp(session.user.id, EXP_REWARDS.GAME_WIN).catch(() => {});
+    await updateProgress(user.id, { type: "GAME_PLAY" }).catch(() => {});
+    if (isWin) await grantExp(user.id, EXP_REWARDS.GAME_WIN).catch(() => {});
     return NextResponse.json({
       coinResult,
       pick,

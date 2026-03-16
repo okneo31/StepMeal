@@ -1,17 +1,17 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { ENHANCE_BONUS_PER_LEVEL, SET_BONUS } from "@/lib/constants";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const nfts = await prisma.userNft.findMany({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       include: {
         template: true,
       },

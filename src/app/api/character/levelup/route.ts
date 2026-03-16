@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { EXP_PER_LEVEL, STATS_PER_LEVEL } from "@/lib/constants";
 
 // POST: Allocate stat points on level up
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
     // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
     const character = await prisma.character.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!character) {
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     const statField = stat === "EFF" ? "statEff" : stat === "LCK" ? "statLck" : stat === "CHM" ? "statChm" : "statHp";
 
     const updated = await prisma.character.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: {
         level: newLevel,
         exp: remainingExp,

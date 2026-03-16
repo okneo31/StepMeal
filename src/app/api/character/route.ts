@@ -1,25 +1,25 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { CONDITION_DAILY_RESTORE } from "@/lib/constants";
 
 // GET: Fetch user character (auto-create if not exists)
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     let character = await prisma.character.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!character) {
       character = await prisma.character.create({
         data: {
-          userId: session.user.id,
-          name: session.user.name || "나의 캐릭터",
+          userId: user.id,
+          name: user.nickname || "나의 캐릭터",
         },
       });
     }
@@ -31,7 +31,7 @@ export async function GET() {
     if (lastRestore < todayMidnight && character.condition < character.maxCondition) {
       const newCondition = Math.min(character.maxCondition, character.condition + CONDITION_DAILY_RESTORE);
       character = await prisma.character.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: { condition: newCondition, lastDailyRestore: now },
       });
     }
@@ -44,9 +44,9 @@ export async function GET() {
 }
 
 // PATCH: Update character name, avatar, class
-export async function PATCH(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function PATCH(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -84,7 +84,7 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ error: "잘못된 서브 클래스입니다." }, { status: 400 });
       }
       if (body.subClass !== null) {
-        const charForLevel = await prisma.character.findUnique({ where: { userId: session.user.id }, select: { level: true } });
+        const charForLevel = await prisma.character.findUnique({ where: { userId: user.id }, select: { level: true } });
         if (!charForLevel || charForLevel.level < 10) {
           return NextResponse.json({ error: "서브 클래스는 Lv.10 이상에서 해금됩니다." }, { status: 400 });
         }
@@ -93,11 +93,11 @@ export async function PATCH(req: Request) {
     }
 
     const character = await prisma.character.upsert({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       update: data,
       create: {
-        userId: session.user.id,
-        name: (data.name as string) || session.user.name || "나의 캐릭터",
+        userId: user.id,
+        name: (data.name as string) || user.nickname || "나의 캐릭터",
         avatarType: (data.avatarType as string) || "DEFAULT",
         mainClass: (data.mainClass as string) || "BODY",
         subClass: data.subClass as string | undefined,

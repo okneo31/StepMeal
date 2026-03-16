@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
 import { grantExp, EXP_REWARDS } from "@/lib/exp";
@@ -12,9 +12,9 @@ const TARGETS = [
 ];
 const BET_AMOUNTS = [50, 100, 200, 500];
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -23,7 +23,7 @@ export async function GET() {
 
   await prisma.gamePlay.updateMany({
     where: {
-      userId: session.user.id,
+      userId: user.id,
       gameType: "PREDICTION",
       status: "PENDING",
       createdAt: { lt: today },
@@ -33,7 +33,7 @@ export async function GET() {
 
   const activePrediction = await prisma.gamePlay.findFirst({
     where: {
-      userId: session.user.id,
+      userId: user.id,
       gameType: "PREDICTION",
       status: "PENDING",
       createdAt: { gte: today, lt: tomorrow },
@@ -42,7 +42,7 @@ export async function GET() {
 
   const movements = await prisma.movement.findMany({
     where: {
-      userId: session.user.id,
+      userId: user.id,
       status: "COMPLETED",
       completedAt: { gte: today, lt: tomorrow },
     },
@@ -51,13 +51,13 @@ export async function GET() {
   const todayDistanceM = movements.reduce((sum, m) => sum + m.distanceM, 0);
 
   const balance = await prisma.coinBalance.findUnique({
-    where: { userId: session.user.id },
+    where: { userId: user.id },
   });
 
   const todayPlayed = !activePrediction
     ? await prisma.gamePlay.findFirst({
         where: {
-          userId: session.user.id,
+          userId: user.id,
           gameType: "PREDICTION",
           createdAt: { gte: today, lt: tomorrow },
         },
@@ -66,7 +66,7 @@ export async function GET() {
 
   const history = await prisma.gamePlay.findMany({
     where: {
-      userId: session.user.id,
+      userId: user.id,
       gameType: "PREDICTION",
       status: { not: "PENDING" },
     },
@@ -99,9 +99,9 @@ export async function GET() {
   });
 }
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -122,12 +122,12 @@ export async function POST(req: Request) {
     const [existing, preBalance] = await Promise.all([
       prisma.gamePlay.findFirst({
         where: {
-          userId: session.user.id,
+          userId: user.id,
           gameType: "PREDICTION",
           createdAt: { gte: today, lt: tomorrow },
         },
       }),
-      prisma.coinBalance.findUnique({ where: { userId: session.user.id } }),
+      prisma.coinBalance.findUnique({ where: { userId: user.id } }),
     ]);
 
     if (existing) {
@@ -139,13 +139,13 @@ export async function POST(req: Request) {
 
     // Sequential atomic operations
     const updatedBalance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: { scBalance: { decrement: betAmount } },
     });
 
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType: "SC",
         amount: -betAmount,
         balanceAfter: updatedBalance.scBalance,
@@ -156,7 +156,7 @@ export async function POST(req: Request) {
 
     const play = await prisma.gamePlay.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         gameType: "PREDICTION",
         coinType: "SC",
         betAmount,
@@ -182,9 +182,9 @@ export async function POST(req: Request) {
   }
 }
 
-export async function PATCH(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function PATCH(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -194,7 +194,7 @@ export async function PATCH(req: Request) {
     const prediction = await prisma.gamePlay.findFirst({
       where: {
         id: predictionId,
-        userId: session.user.id,
+        userId: user.id,
         gameType: "PREDICTION",
         status: "PENDING",
       },
@@ -210,7 +210,7 @@ export async function PATCH(req: Request) {
 
     const movements = await prisma.movement.findMany({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         status: "COMPLETED",
         completedAt: { gte: pToday, lt: pTomorrow },
       },
@@ -226,7 +226,7 @@ export async function PATCH(req: Request) {
 
     // CHM stat bonus for game payout
     const character = await prisma.character.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       select: { statChm: true },
     });
     const chmMult = 1 + (character?.statChm ?? 5) * 0.01;
@@ -235,7 +235,7 @@ export async function PATCH(req: Request) {
 
     // Sequential atomic operations
     const updatedBalance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: {
         scBalance: { increment: payout },
         scLifetime: { increment: payout },
@@ -244,7 +244,7 @@ export async function PATCH(req: Request) {
 
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType: "SC",
         amount: payout,
         balanceAfter: updatedBalance.scBalance,
@@ -263,7 +263,7 @@ export async function PATCH(req: Request) {
       },
     });
 
-    await grantExp(session.user.id, EXP_REWARDS.GAME_WIN).catch(() => {});
+    await grantExp(user.id, EXP_REWARDS.GAME_WIN).catch(() => {});
     return NextResponse.json({
       isWin: true,
       payout,

@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { spinRoulette } from "@/lib/roulette";
 import { ROULETTE_COST_SC, ROULETTE_DAILY_LIMIT } from "@/lib/constants";
 import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
 
-export async function POST() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -16,10 +16,10 @@ export async function POST() {
     const tomorrow = getKSTTomorrow();
 
     const [preBalance, prePlays] = await Promise.all([
-      prisma.coinBalance.findUnique({ where: { userId: session.user.id } }),
+      prisma.coinBalance.findUnique({ where: { userId: user.id } }),
       prisma.roulettePlay.count({
         where: {
-          userId: session.user.id,
+          userId: user.id,
           createdAt: { gte: today, lt: tomorrow },
         },
       }),
@@ -34,13 +34,13 @@ export async function POST() {
 
     // Sequential atomic operations (no interactive transaction)
     const updatedBalance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: { scBalance: { decrement: ROULETTE_COST_SC } },
     });
 
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType: "SC",
         amount: -ROULETTE_COST_SC,
         balanceAfter: updatedBalance.scBalance,
@@ -54,7 +54,7 @@ export async function POST() {
     let finalBalance = updatedBalance;
     if (reward.type === "MC" && reward.value > 0) {
       finalBalance = await prisma.coinBalance.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: {
           mcBalance: { increment: reward.value },
           mcLifetime: { increment: reward.value },
@@ -62,7 +62,7 @@ export async function POST() {
       });
       await prisma.coinTransaction.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           coinType: "MC",
           amount: reward.value,
           balanceAfter: finalBalance.mcBalance,
@@ -72,7 +72,7 @@ export async function POST() {
       });
     } else if (reward.type === "SC" && reward.value > 0) {
       finalBalance = await prisma.coinBalance.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: {
           scBalance: { increment: reward.value },
           scLifetime: { increment: reward.value },
@@ -80,7 +80,7 @@ export async function POST() {
       });
       await prisma.coinTransaction.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           coinType: "SC",
           amount: reward.value,
           balanceAfter: finalBalance.scBalance,
@@ -90,14 +90,14 @@ export async function POST() {
       });
     } else if (reward.type === "SHIELD") {
       await prisma.stride.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: { shieldCount: { increment: 1 } },
       });
     }
 
     await prisma.roulettePlay.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         costSc: ROULETTE_COST_SC,
         rewardType: reward.type,
         rewardValue: reward.value,

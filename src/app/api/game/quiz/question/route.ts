@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { QUIZ_DAILY_LIMIT } from "@/lib/constants";
 import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -16,7 +16,7 @@ export async function GET() {
 
   const todayAttempts = await prisma.quizAttempt.count({
     where: {
-      userId: session.user.id,
+      userId: user.id,
       createdAt: { gte: today, lt: tomorrow },
     },
   });
@@ -32,7 +32,7 @@ export async function GET() {
   // Get questions already attempted today
   const todayAttemptedIds = await prisma.quizAttempt.findMany({
     where: {
-      userId: session.user.id,
+      userId: user.id,
       createdAt: { gte: today, lt: tomorrow },
     },
     select: { questionId: true },

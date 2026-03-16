@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { updateProgress } from "@/lib/progress";
 
 // GET: list courses + active attempt
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -16,7 +16,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.courseAttempt.findFirst({
-      where: { userId: session.user.id, status: "ACTIVE" },
+      where: { userId: user.id, status: "ACTIVE" },
       include: { course: true },
     }),
   ]);
@@ -48,9 +48,9 @@ export async function GET() {
 }
 
 // POST: start course attempt
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     const { courseId } = await req.json();
 
     const existing = await prisma.courseAttempt.findFirst({
-      where: { userId: session.user.id, status: "ACTIVE" },
+      where: { userId: user.id, status: "ACTIVE" },
     });
     if (existing) {
       return NextResponse.json({ error: "이미 진행 중인 코스가 있습니다." }, { status: 400 });
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     }
 
     const attempt = await prisma.courseAttempt.create({
-      data: { userId: session.user.id, courseId },
+      data: { userId: user.id, courseId },
     });
 
     return NextResponse.json({
@@ -88,9 +88,9 @@ export async function POST(req: Request) {
 }
 
 // PATCH: verify checkpoint arrival or cancel
-export async function PATCH(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function PATCH(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -107,7 +107,7 @@ export async function PATCH(req: Request) {
 
     // Verify checkpoint
     const attempt = await prisma.courseAttempt.findFirst({
-      where: { id: attemptId, userId: session.user.id, status: "ACTIVE" },
+      where: { id: attemptId, userId: user.id, status: "ACTIVE" },
       include: { course: true },
     });
 
@@ -162,13 +162,13 @@ export async function PATCH(req: Request) {
     });
 
     const courseBalance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: { scBalance: { increment: totalReward }, scLifetime: { increment: totalReward } },
     });
 
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType: "SC",
         amount: totalReward,
         balanceAfter: courseBalance.scBalance,
@@ -180,7 +180,7 @@ export async function PATCH(req: Request) {
     });
 
     if (isComplete) {
-      await updateProgress(session.user.id, { type: "COURSE_COMPLETE" });
+      await updateProgress(user.id, { type: "COURSE_COMPLETE" });
     }
 
     return NextResponse.json({

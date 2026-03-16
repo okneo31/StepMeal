@@ -1,14 +1,14 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { EQUIP_SLOTS } from "@/lib/constants";
 import type { EquipSlot } from "@/types";
 
 const VALID_SLOTS = new Set<string>(EQUIP_SLOTS);
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       include: { template: true },
     });
 
-    if (!nft || nft.userId !== session.user.id) {
+    if (!nft || nft.userId !== user.id) {
       throw new Error("NFT를 찾을 수 없습니다.");
     }
 
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     // Unequip any existing NFT in the same slot
     await prisma.userNft.updateMany({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         equippedSlot: slot,
         isEquipped: true,
       },

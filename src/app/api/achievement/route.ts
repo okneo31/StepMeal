@@ -1,17 +1,17 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { ACHIEVEMENTS } from "@/lib/missions";
 
 // GET: all achievements with user progress
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const userAchievements = await prisma.userAchievement.findMany({
-    where: { userId: session.user.id },
+    where: { userId: user.id },
   });
 
   const progressMap = new Map(userAchievements.map((a) => [a.achievementCode, a]));
@@ -34,9 +34,9 @@ export async function GET() {
 }
 
 // POST: claim achievement reward
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
 
     // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
     const ua = await prisma.userAchievement.findUnique({
-      where: { userId_achievementCode: { userId: session.user.id, achievementCode: code } },
+      where: { userId_achievementCode: { userId: user.id, achievementCode: code } },
     });
 
     if (!ua || !ua.completed) throw new Error("아직 완료되지 않은 업적입니다.");
@@ -61,13 +61,13 @@ export async function POST(req: Request) {
     });
 
     const achBalance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: { scBalance: { increment: achDef.rewardSc }, scLifetime: { increment: achDef.rewardSc } },
     });
 
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType: "SC",
         amount: achDef.rewardSc,
         balanceAfter: achBalance.scBalance,

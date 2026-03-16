@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
     // Check MC balance
     const mintBalance = await prisma.coinBalance.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!mintBalance || mintBalance.mcBalance < template.priceMc) {
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     // Create UserNft
     const mintedNft = await prisma.userNft.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         templateId,
         mintNumber: updatedTemplate.mintedCount,
       },
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
 
     // Deduct MC
     const updatedMintBalance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: {
         mcBalance: { decrement: template.priceMc },
       },
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     // Transaction record
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType: "MC",
         amount: -template.priceMc,
         balanceAfter: updatedMintBalance.mcBalance,

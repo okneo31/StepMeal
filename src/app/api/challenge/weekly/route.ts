@@ -1,26 +1,26 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { WEEKLY_TIERS } from "@/lib/missions";
 import { getKSTMonday } from "@/lib/kst";
 import { grantExp, EXP_REWARDS } from "@/lib/exp";
 
 // GET: this week's challenge
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const weekStart = getKSTMonday();
 
   let challenge = await prisma.weeklyChallenge.findUnique({
-    where: { userId_weekStart: { userId: session.user.id, weekStart } },
+    where: { userId_weekStart: { userId: user.id, weekStart } },
   });
 
   if (!challenge) {
     challenge = await prisma.weeklyChallenge.create({
-      data: { userId: session.user.id, weekStart },
+      data: { userId: user.id, weekStart },
     });
   }
 
@@ -42,9 +42,9 @@ export async function GET() {
 }
 
 // POST: claim tier reward
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 
     // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
     const challenge = await prisma.weeklyChallenge.findUnique({
-      where: { userId_weekStart: { userId: session.user.id, weekStart } },
+      where: { userId_weekStart: { userId: user.id, weekStart } },
     });
     if (!challenge) throw new Error("챌린지가 없습니다.");
     if (challenge.totalDistanceM < tierDef.targetM) throw new Error("목표 거리에 도달하지 못했습니다.");
@@ -71,16 +71,16 @@ export async function POST(req: Request) {
       data: { [claimedField]: true },
     });
 
-    let weeklyBalance = await prisma.coinBalance.findUnique({ where: { userId: session.user.id } });
+    let weeklyBalance = await prisma.coinBalance.findUnique({ where: { userId: user.id } });
 
     if (tierDef.rewardSc > 0) {
       weeklyBalance = await prisma.coinBalance.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: { scBalance: { increment: tierDef.rewardSc }, scLifetime: { increment: tierDef.rewardSc } },
       });
       await prisma.coinTransaction.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           coinType: "SC",
           amount: tierDef.rewardSc,
           balanceAfter: weeklyBalance!.scBalance,
@@ -91,12 +91,12 @@ export async function POST(req: Request) {
     }
     if (tierDef.rewardMc > 0) {
       weeklyBalance = await prisma.coinBalance.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: { mcBalance: { increment: tierDef.rewardMc }, mcLifetime: { increment: tierDef.rewardMc } },
       });
       await prisma.coinTransaction.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           coinType: "MC",
           amount: tierDef.rewardMc,
           balanceAfter: weeklyBalance!.mcBalance,
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
     }
 
     const weeklyExpMap: Record<string, number> = { BRONZE: EXP_REWARDS.WEEKLY_BRONZE, SILVER: EXP_REWARDS.WEEKLY_SILVER, GOLD: EXP_REWARDS.WEEKLY_GOLD };
-    await grantExp(session.user.id, weeklyExpMap[tier] || 0).catch(() => {});
+    await grantExp(user.id, weeklyExpMap[tier] || 0).catch(() => {});
     return NextResponse.json({ scBalance: weeklyBalance!.scBalance, mcBalance: weeklyBalance!.mcBalance, rewardSc: tierDef.rewardSc, rewardMc: tierDef.rewardMc });
   } catch (error) {
     const message = error instanceof Error ? error.message : "서버 오류";

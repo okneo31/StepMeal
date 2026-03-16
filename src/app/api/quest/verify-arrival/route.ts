@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { haversineDistance } from "@/lib/geolocation";
 import { getKSTToday } from "@/lib/kst";
@@ -7,9 +7,9 @@ import { getKSTToday } from "@/lib/kst";
 const ARRIVAL_RADIUS_M = 50; // 50m radius for arrival verification
 const QUEST_ARRIVAL_SC = 50; // Fixed SC reward for arriving at destination
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     const quest = await prisma.quest.findFirst({
-      where: { id: questId, userId: session.user.id, status: "ACTIVE" },
+      where: { id: questId, userId: user.id, status: "ACTIVE" },
     });
 
     if (!quest) {
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
 
     // 2. Credit arrival SC
     const arrivalBalance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: {
         scBalance: { increment: QUEST_ARRIVAL_SC },
         scLifetime: { increment: QUEST_ARRIVAL_SC },
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
     // 3. Record transaction
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType: "SC",
         amount: QUEST_ARRIVAL_SC,
         balanceAfter: arrivalBalance.scBalance,
@@ -78,10 +78,10 @@ export async function POST(req: Request) {
     const today = getKSTToday();
     await prisma.dailyEarning.upsert({
       where: {
-        userId_earnDate: { userId: session.user.id, earnDate: today },
+        userId_earnDate: { userId: user.id, earnDate: today },
       },
       create: {
-        userId: session.user.id,
+        userId: user.id,
         earnDate: today,
         scMovement: QUEST_ARRIVAL_SC,
       },

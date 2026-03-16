@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { openai } from "@/lib/openai";
 import { startOfWeek, endOfWeek, format, subDays } from "date-fns";
 import { ko } from "date-fns/locale";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -20,14 +20,14 @@ export async function GET() {
     const [dailyEarnings, movements, stride, character, weeklyChallenge] = await Promise.all([
       prisma.dailyEarning.findMany({
         where: {
-          userId: session.user.id,
+          userId: user.id,
           earnDate: { gte: weekStart, lte: weekEnd },
         },
         orderBy: { earnDate: "asc" },
       }),
       prisma.movement.findMany({
         where: {
-          userId: session.user.id,
+          userId: user.id,
           status: "COMPLETED",
           completedAt: { gte: weekStart, lte: weekEnd },
         },
@@ -41,10 +41,10 @@ export async function GET() {
           completedAt: true,
         },
       }),
-      prisma.stride.findUnique({ where: { userId: session.user.id } }),
-      prisma.character.findUnique({ where: { userId: session.user.id } }),
+      prisma.stride.findUnique({ where: { userId: user.id } }),
+      prisma.character.findUnique({ where: { userId: user.id } }),
       prisma.weeklyChallenge.findFirst({
-        where: { userId: session.user.id, weekStart },
+        where: { userId: user.id, weekStart },
       }),
     ]);
 
@@ -91,7 +91,7 @@ export async function GET() {
 
     // Build GPT prompt data
     const userData = {
-      nickname: session.user.name || "사용자",
+      nickname: user.nickname || "사용자",
       level: character?.level || 1,
       mainClass: character?.mainClass || "BODY",
       currentStreak: stride?.currentStreak || 0,

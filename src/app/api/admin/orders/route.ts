@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
 
 // GET: list all orders (admin only)
-export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id || !isAdmin(session.user.email)) {
+export async function GET(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user?.id || !isAdmin(user.email)) {
     return NextResponse.json({ error: "관리자 권한이 필요합니다." }, { status: 403 });
   }
 
@@ -57,9 +57,9 @@ export async function GET(req: Request) {
 }
 
 // PATCH: update order status / tracking number
-export async function PATCH(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id || !isAdmin(session.user.email)) {
+export async function PATCH(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user?.id || !isAdmin(user.email)) {
     return NextResponse.json({ error: "관리자 권한이 필요합니다." }, { status: 403 });
   }
 

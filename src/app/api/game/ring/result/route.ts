@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 
 const SLOT_PAYOUT: Record<number, number> = { 2: 2, 3: 3, 5: 5 };
 const NUMBER_PAYOUT = 50;
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -26,7 +26,7 @@ export async function GET() {
     // Find user's pending bets for this round (or earlier unsettled rounds)
     const pendingBets = await prisma.ringBet.findMany({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         status: "PENDING",
         round: { lte: currentRound },
       },
@@ -89,13 +89,13 @@ export async function GET() {
             : { mcBalance: { increment: payout }, mcLifetime: { increment: payout } };
 
           const updBalance = await prisma.coinBalance.update({
-            where: { userId: session.user.id },
+            where: { userId: user.id },
             data: updateData,
           });
 
           await prisma.coinTransaction.create({
             data: {
-              userId: session.user.id,
+              userId: user.id,
               coinType: bet.coinType,
               amount: payout,
               balanceAfter: bet.coinType === "SC" ? updBalance.scBalance : updBalance.mcBalance,
@@ -120,7 +120,7 @@ export async function GET() {
 
     // Get updated balance
     const balance = await prisma.coinBalance.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     return NextResponse.json({

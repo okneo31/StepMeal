@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { QUIZ_MC_REWARD, QUIZ_DAILY_LIMIT } from "@/lib/constants";
 import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -49,13 +49,13 @@ export async function POST(req: Request) {
     const [preAttempts, preAlready] = await Promise.all([
       prisma.quizAttempt.count({
         where: {
-          userId: session.user.id,
+          userId: user.id,
           createdAt: { gte: today, lt: tomorrow },
         },
       }),
       prisma.quizAttempt.findFirst({
         where: {
-          userId: session.user.id,
+          userId: user.id,
           questionId,
           createdAt: { gte: today, lt: tomorrow },
         },
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
     // Sequential atomic operations (no interactive transaction)
     await prisma.quizAttempt.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         questionId,
         selectedIndex,
         isCorrect,
@@ -81,12 +81,12 @@ export async function POST(req: Request) {
     });
 
     let balance = await prisma.coinBalance.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (isCorrect && balance) {
       balance = await prisma.coinBalance.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: {
           mcBalance: { increment: mcEarned },
           mcLifetime: { increment: mcEarned },
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
 
       await prisma.coinTransaction.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           coinType: "MC",
           amount: mcEarned,
           balanceAfter: balance.mcBalance,
@@ -106,10 +106,10 @@ export async function POST(req: Request) {
 
       await prisma.dailyEarning.upsert({
         where: {
-          userId_earnDate: { userId: session.user.id, earnDate: today },
+          userId_earnDate: { userId: user.id, earnDate: today },
         },
         create: {
-          userId: session.user.id,
+          userId: user.id,
           earnDate: today,
           mcGame: mcEarned,
         },

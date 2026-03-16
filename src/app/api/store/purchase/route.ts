@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { PREMIUM_THEME_IDS } from "@/lib/theme-config";
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     // Sequential atomic operations (no interactive transaction for PgBouncer compatibility)
     // 1. Check balance
     const storeBalance = await prisma.coinBalance.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!storeBalance) {
@@ -55,14 +55,14 @@ export async function POST(req: Request) {
       : { mcBalance: { decrement: totalPrice } };
 
     const updatedStoreBalance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: storeUpdateData,
     });
 
     // 3. Create purchase record
     const purchase = await prisma.purchase.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         storeItemId: item.id,
         coinType: item.coinType,
         amount: totalPrice,
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
     const newStoreBalance = item.coinType === "SC" ? updatedStoreBalance.scBalance : updatedStoreBalance.mcBalance;
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType: item.coinType,
         amount: -totalPrice,
         balanceAfter: newStoreBalance,
@@ -97,17 +97,17 @@ export async function POST(req: Request) {
         const meta = JSON.parse(item.metadata);
         if (meta.type === "SHIELD") {
           await prisma.stride.update({
-            where: { userId: session.user.id },
+            where: { userId: user.id },
             data: { shieldCount: { increment: quantity } },
           });
         } else if (meta.type === "THEME") {
-          const user = await prisma.user.findUnique({
-            where: { id: session.user.id },
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
             select: { unlockedThemes: true },
           });
           let unlocked: string[] = [];
           try {
-            unlocked = JSON.parse(user?.unlockedThemes || "[]");
+            unlocked = JSON.parse(dbUser?.unlockedThemes || "[]");
           } catch {
             unlocked = [];
           }
@@ -117,7 +117,7 @@ export async function POST(req: Request) {
           }
           const merged = [...new Set([...unlocked, ...PREMIUM_THEME_IDS])];
           await prisma.user.update({
-            where: { id: session.user.id },
+            where: { id: user.id },
             data: { unlockedThemes: JSON.stringify(merged) },
           });
         }

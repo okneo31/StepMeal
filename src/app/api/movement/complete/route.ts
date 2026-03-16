@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { calculateMovementSc, getMultiModalBonus, getMultiClassCount, getTimeSlot, estimateCalories } from "@/lib/sc-calculator";
 import { calculateStrideUpdate } from "@/lib/stride-engine";
@@ -15,9 +15,9 @@ const MAX_NFT_BONUS_PERCENT = 2000;
 const VALID_TRANSPORTS = new Set(Object.keys(TRANSPORT_CONFIG));
 const VALID_WEATHERS = new Set(['CLEAR','CLOUDY','RAIN','SNOW','HEAVY_RAIN','HEAVY_SNOW','EXTREME_HEAT','EXTREME_COLD']);
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
 
     // Verify movement belongs to user
     const movement = await prisma.movement.findFirst({
-      where: { id: movementId, userId: session.user.id, status: "ACTIVE" },
+      where: { id: movementId, userId: user.id, status: "ACTIVE" },
     });
 
     if (!movement) {
@@ -69,13 +69,13 @@ export async function POST(req: Request) {
 
     // Get user stride info
     const stride = await prisma.stride.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
     const strideLevel = stride?.strideLevel || 0;
 
     // Get NFT bonus (only EQUIPPED NFTs contribute)
     const equippedNfts = await prisma.userNft.findMany({
-      where: { userId: session.user.id, isEquipped: true },
+      where: { userId: user.id, isEquipped: true },
       include: { template: { select: { scBonusPercent: true, nftType: true, matchedTransports: true, synergyPercent: true, transportClass: true } } },
     });
     let nftBonusPercent = 0;
@@ -112,7 +112,7 @@ export async function POST(req: Request) {
 
     // Character: condition, stats, class
     const character = await prisma.character.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       select: { condition: true, maxCondition: true, statEff: true, statLck: true, statHp: true, mainClass: true, subClass: true, lastDailyRestore: true },
     });
 
@@ -123,7 +123,7 @@ export async function POST(req: Request) {
       if (character.lastDailyRestore < todayMidnight && character.condition < character.maxCondition) {
         character.condition = Math.min(character.maxCondition, character.condition + CONDITION_DAILY_RESTORE);
         await prisma.character.update({
-          where: { userId: session.user.id },
+          where: { userId: user.id },
           data: { condition: character.condition, lastDailyRestore: restoreNow },
         });
       }
@@ -146,7 +146,7 @@ export async function POST(req: Request) {
     // Check for active booster
     const now = new Date();
     const activeBooster = await prisma.activeBooster.findFirst({
-      where: { userId: session.user.id, expiresAt: { gt: now } },
+      where: { userId: user.id, expiresAt: { gt: now } },
       orderBy: { activatedAt: "desc" },
     });
     const boosterMult = activeBooster?.multiplier || 1.0;
@@ -211,7 +211,7 @@ export async function POST(req: Request) {
 
     // 2. Update coin balance
     const balance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: {
         scBalance: { increment: scBreakdown.totalSc },
         scLifetime: { increment: scBreakdown.totalSc },
@@ -221,7 +221,7 @@ export async function POST(req: Request) {
     // 3. Create transaction record
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType: "SC",
         amount: scBreakdown.totalSc,
         balanceAfter: balance.scBalance,
@@ -236,10 +236,10 @@ export async function POST(req: Request) {
     const todayDate = getKSTToday();
     await prisma.dailyEarning.upsert({
       where: {
-        userId_earnDate: { userId: session.user.id, earnDate: todayDate },
+        userId_earnDate: { userId: user.id, earnDate: todayDate },
       },
       create: {
-        userId: session.user.id,
+        userId: user.id,
         earnDate: todayDate,
         scMovement: scBreakdown.totalSc,
         distanceM: totalDistance,
@@ -262,9 +262,9 @@ export async function POST(req: Request) {
     );
 
     await prisma.stride.upsert({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       create: {
-        userId: session.user.id,
+        userId: user.id,
         currentStreak: strideUpdate.newStreak,
         strideLevel: strideUpdate.newLevel,
         strideMultiplier: STRIDE_TABLE[Math.max(0, Math.min(strideUpdate.newLevel, STRIDE_TABLE.length - 1))].multiplier,
@@ -289,7 +289,7 @@ export async function POST(req: Request) {
       const condDecay = Math.max(1, CONDITION_DECAY_PER_MOVE - Math.floor(hpStat / 10));
       const newCondition = Math.max(0, (character.condition ?? 100) - condDecay);
       await prisma.character.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: { condition: newCondition, lastCondDecay: now },
       });
     }
@@ -314,13 +314,13 @@ export async function POST(req: Request) {
     let finalBalance = balance.scBalance;
     if (milestoneBonusSc > 0) {
       const bal = await prisma.coinBalance.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: { scBalance: { increment: milestoneBonusSc }, scLifetime: { increment: milestoneBonusSc } },
       });
       finalBalance = bal.scBalance;
       await prisma.coinTransaction.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           coinType: "SC",
           amount: milestoneBonusSc,
           balanceAfter: finalBalance,
@@ -335,7 +335,7 @@ export async function POST(req: Request) {
       .filter((s) => s.transport === "WALK" || s.transport === "RUN")
       .reduce((sum, s) => sum + s.distance, 0);
 
-    await updateProgress(session.user.id, {
+    await updateProgress(user.id, {
       type: "MOVEMENT_COMPLETE",
       distanceM: totalDistance,
       isMulti,
@@ -344,7 +344,7 @@ export async function POST(req: Request) {
 
     // ─── Grant EXP ───
     const expAmount = Math.floor((totalDistance / 1000) * EXP_REWARDS.MOVEMENT_PER_KM);
-    await grantExp(session.user.id, expAmount).catch((e) => console.error("EXP grant error:", e));
+    await grantExp(user.id, expAmount).catch((e) => console.error("EXP grant error:", e));
 
     return NextResponse.json({
       movementId,

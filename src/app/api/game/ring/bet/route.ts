@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 
 const MIN_BET = 10;
@@ -8,9 +8,9 @@ const VALID_SLOTS = [2, 3, 5];
 const SLOT_PAYOUT: Record<number, number> = { 2: 2, 3: 3, 5: 5 };
 const NUMBER_PAYOUT = 50;
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
 
     // Check if user already has a pending bet on this round
     const existingBet = await prisma.ringBet.findFirst({
-      where: { userId: session.user.id, round: nextRound, status: "PENDING" },
+      where: { userId: user.id, round: nextRound, status: "PENDING" },
     });
     if (existingBet) {
       return NextResponse.json({ error: "이미 이번 라운드에 베팅했습니다. 결과를 기다려주세요." }, { status: 409 });
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 
     // Check balance
     const balance = await prisma.coinBalance.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!balance) {
@@ -80,13 +80,13 @@ export async function POST(req: Request) {
       : { mcBalance: { decrement: betAmount } };
 
     const updatedBalance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: updateData,
     });
 
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType,
         amount: -betAmount,
         balanceAfter: coinType === "SC" ? updatedBalance.scBalance : updatedBalance.mcBalance,
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
 
     const bet = await prisma.ringBet.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         round: nextRound,
         coinType,
         betAmount,

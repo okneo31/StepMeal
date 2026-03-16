@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { updateProgress } from "@/lib/progress";
 import { getKSTToday } from "@/lib/kst";
@@ -7,9 +7,9 @@ import { grantExp, EXP_REWARDS } from "@/lib/exp";
 
 const QUEST_REVIEW_SC = 20; // Fixed SC reward for writing a review
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     }
 
     const quest = await prisma.quest.findFirst({
-      where: { id: questId, userId: session.user.id, status: "ARRIVED" },
+      where: { id: questId, userId: user.id, status: "ARRIVED" },
     });
 
     if (!quest) {
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     const review = await prisma.questReview.create({
       data: {
         questId,
-        userId: session.user.id,
+        userId: user.id,
         photoUrl: photoUrl || null,
         comment: comment?.trim() || null,
         rating: rating || null,
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 
     // 3. Credit review SC bonus
     const balance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: {
         scBalance: { increment: reviewBonus },
         scLifetime: { increment: reviewBonus },
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
 
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType: "SC",
         amount: reviewBonus,
         balanceAfter: balance.scBalance,
@@ -92,10 +92,10 @@ export async function POST(req: Request) {
     const todayStart = getKSTToday();
     await prisma.dailyEarning.upsert({
       where: {
-        userId_earnDate: { userId: session.user.id, earnDate: todayStart },
+        userId_earnDate: { userId: user.id, earnDate: todayStart },
       },
       create: {
-        userId: session.user.id,
+        userId: user.id,
         earnDate: todayStart,
         scMovement: reviewBonus,
       },
@@ -104,8 +104,8 @@ export async function POST(req: Request) {
       },
     });
 
-    await updateProgress(session.user.id, { type: "QUEST_COMPLETE" }).catch(() => {});
-    await grantExp(session.user.id, EXP_REWARDS.QUEST_REVIEW).catch(() => {});
+    await updateProgress(user.id, { type: "QUEST_COMPLETE" }).catch(() => {});
+    await grantExp(user.id, EXP_REWARDS.QUEST_REVIEW).catch(() => {});
 
     return NextResponse.json({
       reviewId: review.id,

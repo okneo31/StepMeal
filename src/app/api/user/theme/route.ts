@@ -1,39 +1,39 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { THEMES } from "@/lib/theme-config";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
     select: { activeTheme: true, unlockedThemes: true },
   });
 
-  if (!user) {
+  if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
   let unlocked: string[] = [];
   try {
-    unlocked = JSON.parse(user.unlockedThemes);
+    unlocked = JSON.parse(dbUser.unlockedThemes);
   } catch {
     unlocked = [];
   }
 
   return NextResponse.json({
-    activeTheme: user.activeTheme,
+    activeTheme: dbUser.activeTheme,
     unlockedThemes: unlocked,
   });
 }
 
-export async function PUT(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function PUT(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -46,7 +46,7 @@ export async function PUT(req: Request) {
   // "default" is always available
   if (themeId === "default") {
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: user.id },
       data: { activeTheme: "default" },
     });
     return NextResponse.json({ activeTheme: "default" });
@@ -59,18 +59,18 @@ export async function PUT(req: Request) {
   }
 
   // Check unlocked
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
     select: { unlockedThemes: true },
   });
 
-  if (!user) {
+  if (!dbUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
   let unlocked: string[] = [];
   try {
-    unlocked = JSON.parse(user.unlockedThemes);
+    unlocked = JSON.parse(dbUser.unlockedThemes);
   } catch {
     unlocked = [];
   }
@@ -80,7 +80,7 @@ export async function PUT(req: Request) {
   }
 
   await prisma.user.update({
-    where: { id: session.user.id },
+    where: { id: user.id },
     data: { activeTheme: themeId },
   });
 

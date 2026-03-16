@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
     // Verify purchase belongs to user and is a health food
     const purchase = await prisma.purchase.findFirst({
-      where: { id: purchaseId, userId: session.user.id },
+      where: { id: purchaseId, userId: user.id },
       include: { storeItem: true },
     });
 
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
     const order = await prisma.order.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         purchaseId,
         recipientName: recipientName.trim(),
         phone: phoneClean,

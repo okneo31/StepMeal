@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { updateProgress } from "@/lib/progress";
 import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
@@ -24,9 +24,9 @@ function checkWin(roll: number, betType: string, betValue?: number): boolean {
   }
 }
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -34,10 +34,10 @@ export async function GET() {
   const tomorrow = getKSTTomorrow();
 
   const [balance, todayPlays] = await Promise.all([
-    prisma.coinBalance.findUnique({ where: { userId: session.user.id } }),
+    prisma.coinBalance.findUnique({ where: { userId: user.id } }),
     prisma.gamePlay.count({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         gameType: "DICE",
         createdAt: { gte: today, lt: tomorrow },
       },
@@ -52,9 +52,9 @@ export async function GET() {
   });
 }
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -78,10 +78,10 @@ export async function POST(req: Request) {
     const tomorrow = getKSTTomorrow();
 
     const [preBalance, prePlays] = await Promise.all([
-      prisma.coinBalance.findUnique({ where: { userId: session.user.id } }),
+      prisma.coinBalance.findUnique({ where: { userId: user.id } }),
       prisma.gamePlay.count({
         where: {
-          userId: session.user.id,
+          userId: user.id,
           gameType: "DICE",
           createdAt: { gte: today, lt: tomorrow },
         },
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
 
     // CHM stat bonus for game payout
     const character = await prisma.character.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       select: { statChm: true },
     });
     const chmMult = 1 + (character?.statChm ?? 5) * 0.01;
@@ -114,13 +114,13 @@ export async function POST(req: Request) {
       : { mcBalance: { decrement: betAmount } };
 
     let updatedBalance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: deductData,
     });
 
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType,
         amount: -betAmount,
         balanceAfter: coinType === "SC" ? updatedBalance.scBalance : updatedBalance.mcBalance,
@@ -135,12 +135,12 @@ export async function POST(req: Request) {
         : { mcBalance: { increment: payout }, mcLifetime: { increment: payout } };
 
       updatedBalance = await prisma.coinBalance.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: creditData,
       });
       await prisma.coinTransaction.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           coinType,
           amount: payout,
           balanceAfter: coinType === "SC" ? updatedBalance.scBalance : updatedBalance.mcBalance,
@@ -153,7 +153,7 @@ export async function POST(req: Request) {
     const betChoiceStr = betType === "exact" ? `exact:${betValue}` : betType;
     await prisma.gamePlay.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         gameType: "DICE",
         coinType,
         betAmount,
@@ -167,8 +167,8 @@ export async function POST(req: Request) {
     });
 
     // Await progress update to prevent connection pool exhaustion
-    await updateProgress(session.user.id, { type: "GAME_PLAY" }).catch(() => {});
-    if (isWin) await grantExp(session.user.id, EXP_REWARDS.GAME_WIN).catch(() => {});
+    await updateProgress(user.id, { type: "GAME_PLAY" }).catch(() => {});
+    if (isWin) await grantExp(user.id, EXP_REWARDS.GAME_WIN).catch(() => {});
     return NextResponse.json({
       roll,
       betType,

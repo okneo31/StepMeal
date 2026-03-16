@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     }
 
     const movement = await prisma.movement.findFirst({
-      where: { id: movementId, userId: session.user.id },
+      where: { id: movementId, userId: user.id },
     });
 
     if (!movement) {
@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     // Check for active booster at the time of movement
     const activeBooster = await prisma.activeBooster.findFirst({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         activatedAt: { lte: movement.completedAt || movement.createdAt },
         expiresAt: { gt: movement.completedAt || movement.createdAt },
       },

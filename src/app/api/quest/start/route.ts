@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
     // Check if user already has an active quest
     const activeQuest = await prisma.quest.findFirst({
-      where: { userId: session.user.id, status: "ACTIVE" },
+      where: { userId: user.id, status: "ACTIVE" },
     });
 
     if (activeQuest) {
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
     const quest = await prisma.quest.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         destName: destName.trim(),
         destLat,
         destLng,

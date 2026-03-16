@@ -1,18 +1,18 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { getStrideInfo, getDaysUntilNextStride } from "@/lib/stride-engine";
 import { ENHANCE_BONUS_PER_LEVEL, SET_BONUS } from "@/lib/constants";
 import { subDays, format } from "date-fns";
 import { getKSTToday, getKSTMonday } from "@/lib/kst";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const userId = session.user.id;
+  const userId = user.id;
 
   try {
     const now = new Date();
@@ -126,7 +126,7 @@ export async function GET() {
     let charData = character;
     if (!charData) {
       charData = await prisma.character.create({
-        data: { userId, name: session.user.name || "나의 캐릭터" },
+        data: { userId, name: user.nickname || "나의 캐릭터" },
       });
     }
 

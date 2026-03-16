@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { ENHANCE_RATES } from "@/lib/constants";
 
 const ENHANCE_COST_MC = [50, 100, 200, 400, 800]; // MC cost per level
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       include: { template: true },
     });
 
-    if (!nft || nft.userId !== session.user.id) {
+    if (!nft || nft.userId !== user.id) {
       throw new Error("NFT를 찾을 수 없습니다.");
     }
 
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
 
     // Check MC balance
     const enhanceBalance = await prisma.coinBalance.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!enhanceBalance || enhanceBalance.mcBalance < cost) {
@@ -47,14 +47,14 @@ export async function POST(req: Request) {
 
     // Deduct MC
     const updatedEnhanceBalance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: { mcBalance: { decrement: cost } },
     });
 
     // Record transaction
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType: "MC",
         amount: -cost,
         balanceAfter: updatedEnhanceBalance.mcBalance,

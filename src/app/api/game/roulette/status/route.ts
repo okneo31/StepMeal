@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { ROULETTE_DAILY_LIMIT, ROULETTE_COST_SC } from "@/lib/constants";
 import { getKSTToday, getKSTTomorrow } from "@/lib/kst";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -15,13 +15,13 @@ export async function GET() {
 
   const todayPlays = await prisma.roulettePlay.count({
     where: {
-      userId: session.user.id,
+      userId: user.id,
       createdAt: { gte: today, lt: tomorrow },
     },
   });
 
   const balance = await prisma.coinBalance.findUnique({
-    where: { userId: session.user.id },
+    where: { userId: user.id },
   });
 
   return NextResponse.json({

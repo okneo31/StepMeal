@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { QR_SCAN_DAILY_LIMIT } from "@/lib/constants";
 import { getBoosterMultiplier, BOOSTER_DURATION_HOURS } from "@/lib/booster-config";
@@ -17,9 +17,9 @@ interface PartnerVerifyResponse {
   error?: string;
 }
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -43,13 +43,13 @@ export async function POST(req: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code: trimmedCode,
-          user_id: session.user.id,
+          user_id: user.id,
         }),
       });
       partnerResult = (await res.json()) as PartnerVerifyResponse;
     } catch {
       // Partner API unreachable - fall back to local DB
-      return await localScan(trimmedCode, session.user.id);
+      return await localScan(trimmedCode, user.id);
     }
 
     if (!partnerResult.success) {
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
     const today = getKSTToday();
     const todayScans = await prisma.coinTransaction.count({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         sourceType: "QR_SCAN",
         createdAt: { gte: today },
       },
@@ -94,7 +94,7 @@ export async function POST(req: Request) {
 
     // Credit MC
     const qrBalance = await prisma.coinBalance.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: {
         mcBalance: { increment: mcReward },
         mcLifetime: { increment: mcReward },
@@ -104,7 +104,7 @@ export async function POST(req: Request) {
     // Transaction record
     await prisma.coinTransaction.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coinType: "MC",
         amount: mcReward,
         balanceAfter: qrBalance.mcBalance,
@@ -117,16 +117,16 @@ export async function POST(req: Request) {
     const earnDate = getKSTToday();
     await prisma.dailyEarning.upsert({
       where: {
-        userId_earnDate: { userId: session.user.id, earnDate },
+        userId_earnDate: { userId: user.id, earnDate },
       },
-      create: { userId: session.user.id, earnDate, mcQr: mcReward },
+      create: { userId: user.id, earnDate, mcQr: mcReward },
       update: { mcQr: { increment: mcReward } },
     });
 
     // Restore character condition if applicable
     if (conditionRestore > 0) {
       const qrCharacter = await prisma.character.findUnique({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
       });
       if (qrCharacter) {
         const newCondition = Math.min(
@@ -134,7 +134,7 @@ export async function POST(req: Request) {
           qrCharacter.condition + conditionRestore
         );
         await prisma.character.update({
-          where: { userId: session.user.id },
+          where: { userId: user.id },
           data: { condition: newCondition },
         });
       }
@@ -147,7 +147,7 @@ export async function POST(req: Request) {
 
     // Upsert: overwrite existing booster
     const existingBooster = await prisma.activeBooster.findFirst({
-      where: { userId: session.user.id, expiresAt: { gt: now } },
+      where: { userId: user.id, expiresAt: { gt: now } },
       orderBy: { activatedAt: "desc" },
     });
 
@@ -158,12 +158,12 @@ export async function POST(req: Request) {
       });
     } else {
       await prisma.activeBooster.create({
-        data: { userId: session.user.id, boosterType, multiplier: boostMult, productName, activatedAt: now, expiresAt },
+        data: { userId: user.id, boosterType, multiplier: boostMult, productName, activatedAt: now, expiresAt },
       });
     }
 
     // Grant EXP for QR scan
-    await grantExp(session.user.id, EXP_REWARDS.QR_SCAN).catch(() => {});
+    await grantExp(user.id, EXP_REWARDS.QR_SCAN).catch(() => {});
 
     return NextResponse.json({
       success: true,

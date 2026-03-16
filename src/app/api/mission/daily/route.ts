@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/mobile-auth";
 import { prisma } from "@/lib/prisma";
 import { generateDailyMissions, ALL_CLEAR_BASE_SC, STREAK_BONUS_SC } from "@/lib/missions";
 import { updateProgress } from "@/lib/progress";
@@ -7,9 +7,9 @@ import { getKSTToday } from "@/lib/kst";
 import { grantExp, EXP_REWARDS } from "@/lib/exp";
 
 // GET: today's missions (auto-generate if not exist)
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -17,16 +17,16 @@ export async function GET() {
 
   // Check existing
   let missions = await prisma.dailyMission.findMany({
-    where: { userId: session.user.id, missionDate: today },
+    where: { userId: user.id, missionDate: today },
     orderBy: { slot: "asc" },
   });
 
   // Generate if none
   if (missions.length === 0) {
-    const defs = generateDailyMissions(session.user.id, today);
+    const defs = generateDailyMissions(user.id, today);
     await prisma.dailyMission.createMany({
       data: defs.map((d, i) => ({
-        userId: session.user.id,
+        userId: user.id,
         missionDate: today,
         slot: i + 1,
         missionType: d.type,
@@ -37,7 +37,7 @@ export async function GET() {
       })),
     });
     missions = await prisma.dailyMission.findMany({
-      where: { userId: session.user.id, missionDate: today },
+      where: { userId: user.id, missionDate: today },
       orderBy: { slot: "asc" },
     });
   }
@@ -49,7 +49,7 @@ export async function GET() {
   let checkDate = new Date(yesterday);
   for (let i = 0; i < 30; i++) {
     const claimed = await prisma.dailyMission.count({
-      where: { userId: session.user.id, missionDate: checkDate, status: "CLAIMED" },
+      where: { userId: user.id, missionDate: checkDate, status: "CLAIMED" },
     });
     if (claimed >= 3) {
       streak++;
@@ -83,9 +83,9 @@ export async function GET() {
 }
 
 // PATCH: claim mission reward or all-clear bonus
-export async function PATCH(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function PATCH(req: NextRequest) {
+  const user = await getAuthUser(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -96,7 +96,7 @@ export async function PATCH(req: Request) {
     if (claimAllClear) {
       // Claim all-clear bonus
       const missions = await prisma.dailyMission.findMany({
-        where: { userId: session.user.id, missionDate: today },
+        where: { userId: user.id, missionDate: today },
       });
       if (!missions.every((m) => m.status === "CLAIMED")) {
         return NextResponse.json({ error: "모든 미션을 먼저 완료하세요." }, { status: 400 });
@@ -109,7 +109,7 @@ export async function PATCH(req: Request) {
       let checkDate = new Date(yesterday);
       for (let i = 0; i < 30; i++) {
         const claimed = await prisma.dailyMission.count({
-          where: { userId: session.user.id, missionDate: checkDate, status: "CLAIMED" },
+          where: { userId: user.id, missionDate: checkDate, status: "CLAIMED" },
         });
         if (claimed >= 3) {
           streak++;
@@ -120,13 +120,13 @@ export async function PATCH(req: Request) {
       const bonus = ALL_CLEAR_BASE_SC + streak * STREAK_BONUS_SC;
 
       const balance = await prisma.coinBalance.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: { scBalance: { increment: bonus }, scLifetime: { increment: bonus } },
       });
 
       await prisma.coinTransaction.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           coinType: "SC",
           amount: bonus,
           balanceAfter: balance.scBalance,
@@ -135,14 +135,14 @@ export async function PATCH(req: Request) {
         },
       });
 
-      await updateProgress(session.user.id, { type: "DAILY_ALL_CLEAR" });
+      await updateProgress(user.id, { type: "DAILY_ALL_CLEAR" });
 
       return NextResponse.json({ bonus, streak: streak + 1, scBalance: balance.scBalance });
     }
 
     // Claim single mission
     const mission = await prisma.dailyMission.findFirst({
-      where: { id: missionId, userId: session.user.id, status: "COMPLETED" },
+      where: { id: missionId, userId: user.id, status: "COMPLETED" },
     });
     if (!mission) {
       return NextResponse.json({ error: "수령 가능한 미션이 아닙니다." }, { status: 400 });
@@ -159,14 +159,14 @@ export async function PATCH(req: Request) {
 
     if (mission.rewardSc > 0) {
       const b = await prisma.coinBalance.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: { scBalance: { increment: mission.rewardSc }, scLifetime: { increment: mission.rewardSc } },
       });
       missionScBal = b.scBalance;
       missionMcBal = b.mcBalance;
       await prisma.coinTransaction.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           coinType: "SC",
           amount: mission.rewardSc,
           balanceAfter: b.scBalance,
@@ -177,14 +177,14 @@ export async function PATCH(req: Request) {
     }
     if (mission.rewardMc > 0) {
       const b = await prisma.coinBalance.update({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         data: { mcBalance: { increment: mission.rewardMc }, mcLifetime: { increment: mission.rewardMc } },
       });
       missionScBal = b.scBalance;
       missionMcBal = b.mcBalance;
       await prisma.coinTransaction.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           coinType: "MC",
           amount: mission.rewardMc,
           balanceAfter: b.mcBalance,
@@ -194,7 +194,7 @@ export async function PATCH(req: Request) {
       });
     }
 
-    await grantExp(session.user.id, EXP_REWARDS.DAILY_MISSION).catch(() => {});
+    await grantExp(user.id, EXP_REWARDS.DAILY_MISSION).catch(() => {});
     return NextResponse.json({ scBalance: missionScBal, mcBalance: missionMcBal, rewardSc: mission.rewardSc, rewardMc: mission.rewardMc });
   } catch (error) {
     console.error("Mission claim error:", error);
